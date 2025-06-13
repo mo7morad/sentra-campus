@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Users, Star, TrendingUp, AlertTriangle, Search } from "lucide-react";
 import { ChartContainer } from "@/components/ChartContainer";
@@ -66,7 +65,7 @@ const performanceMetrics = [
 const LecturerPerformance = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [selectedL lecturer, setSelectedLecturer] = useState(lecturerData[0]);
+  const [selectedLecturer, setSelectedLecturer] = useState(lecturerData[0]);
 
   const filteredLecturers = lecturerData.filter(lecturer => {
     const matchesSearch = lecturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
