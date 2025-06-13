@@ -34,9 +34,10 @@ const navigation = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
+  const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -47,7 +48,7 @@ export function AppSidebar() {
     }`;
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible>
+    <Sidebar className={isCollapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent className="bg-sidebar">
         {/* Header */}
         <div className="p-4 border-b border-sidebar-border">
@@ -55,7 +56,7 @@ export function AppSidebar() {
             <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
               <BarChart className="w-4 h-4 text-sidebar-primary-foreground" />
             </div>
-            {!collapsed && (
+            {!isCollapsed && (
               <div>
                 <h2 className="text-sm font-semibold text-sidebar-foreground">
                   Campus MIS
@@ -84,7 +85,7 @@ export function AppSidebar() {
                       className={getNavCls}
                     >
                       <item.icon className="w-4 h-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -99,7 +100,7 @@ export function AppSidebar() {
             <div className="w-8 h-8 bg-sidebar-accent rounded-full flex items-center justify-center">
               <User className="w-4 h-4 text-sidebar-foreground" />
             </div>
-            {!collapsed && (
+            {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
                   Admin User

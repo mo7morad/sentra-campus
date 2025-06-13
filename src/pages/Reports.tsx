@@ -1,11 +1,9 @@
-
 import React, { useState } from "react";
 import { BarChart, Calendar, Download, TrendingUp, Filter } from "lucide-react";
 import { ChartContainer } from "@/components/ChartContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/calendar";
 import { 
   BarChart as RechartsBarChart, 
   Bar, 
