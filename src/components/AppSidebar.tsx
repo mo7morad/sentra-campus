@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -23,6 +22,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "./ThemeToggle";
 
 const navigation = [
   { title: "Dashboard", url: "/", icon: BarChart },
@@ -110,9 +110,12 @@ export function AppSidebar() {
                 </p>
               </div>
             )}
-            <button className="p-1 hover:bg-sidebar-accent rounded">
-              <LogOut className="w-4 h-4 text-sidebar-foreground/60" />
-            </button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <button className="p-1 hover:bg-sidebar-accent rounded">
+                <LogOut className="w-4 h-4 text-sidebar-foreground/60" />
+              </button>
+            </div>
           </div>
         </div>
       </SidebarContent>
