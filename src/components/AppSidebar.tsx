@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -25,10 +26,10 @@ import {
 import { ThemeToggle } from "./ThemeToggle";
 
 const navigation = [
-  { title: "Dashboard", url: "/", icon: BarChart },
-  { title: "Lecturer Performance", url: "/lecturers", icon: Users },
-  { title: "Course Evaluation", url: "/courses", icon: BookOpen },
-  { title: "Feedback Management", url: "/feedback", icon: MessageSquare },
+  { title: "Dashboard", url: "/dashboard", icon: BarChart },
+  { title: "Lecturer Performance", url: "/lecturer-performance", icon: Users },
+  { title: "Course Evaluation", url: "/course-evaluation", icon: BookOpen },
+  { title: "Feedback Management", url: "/feedback-management", icon: MessageSquare },
   { title: "Reports & Analytics", url: "/reports", icon: BarChart },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
