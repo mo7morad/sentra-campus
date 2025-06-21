@@ -1,90 +1,136 @@
 
 import React from "react";
-import { Users, BookOpen, MessageSquare, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, BookOpen, MessageSquare, TrendingUp, GraduationCap, Building } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-
-const performanceData = [
-  { name: "Jan", satisfaction: 85, courses: 42 },
-  { name: "Feb", satisfaction: 87, courses: 45 },
-  { name: "Mar", satisfaction: 82, courses: 48 },
-  { name: "Apr", satisfaction: 89, courses: 51 },
-  { name: "May", satisfaction: 91, courses: 53 },
-  { name: "Jun", satisfaction: 88, courses: 56 },
-];
-
-const departmentData = [
-  { name: "Computer Science", value: 35, color: "hsl(var(--chart-1))" },
-  { name: "Engineering", value: 28, color: "hsl(var(--chart-2))" },
-  { name: "Business", value: 22, color: "hsl(var(--chart-3))" },
-  { name: "Arts", value: 15, color: "hsl(var(--chart-4))" },
-];
-
-const recentFeedback = [
-  { course: "Data Structures", lecturer: "Dr. Smith", rating: 4.8, status: "excellent" },
-  { course: "Database Systems", lecturer: "Prof. Johnson", rating: 3.2, status: "needs-attention" },
-  { course: "Web Development", lecturer: "Dr. Williams", rating: 4.5, status: "good" },
-  { course: "Machine Learning", lecturer: "Prof. Brown", rating: 4.9, status: "excellent" },
-];
+import { useDashboardStats, useCurrentSemester } from "@/hooks/useData";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const Dashboard = () => {
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: currentSemester } = useCurrentSemester();
+
+  // Sample chart data - in production this would come from your database
+  const departmentData = [
+    { name: "Computer Science", students: 45, courses: 8 },
+    { name: "Engineering", students: 38, courses: 6 },
+    { name: "Mathematics", students: 28, courses: 5 },
+    { name: "Physics", students: 22, courses: 4 },
+    { name: "English", students: 15, courses: 3 },
+    { name: "Business", students: 32, courses: 5 },
+  ];
+
+  if (statsLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-64"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="animate-fade-in">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Dashboard Overview</h2>
-        <p className="text-muted-foreground">
-          Monitor student feedback trends and institutional performance metrics
-        </p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+          <p className="text-muted-foreground">
+            {currentSemester 
+              ? `Current: ${currentSemester.semester_name} ${currentSemester.academic_year}`
+              : "Campus Management Information System Overview"
+            }
+          </p>
+        </div>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          title="Total Feedback Responses"
-          value="2,847"
-          change="+12% from last month"
-          changeType="positive"
-          icon={MessageSquare}
-          gradient="gradient-primary"
+          title="Total Lecturers"
+          value={stats?.totalLecturers || 0}
+          icon={<Users className="w-6 h-6" />}
+          trend={{ value: 5, isPositive: true }}
+          className="animate-slide-up"
         />
         <MetricCard
-          title="Active Lecturers"
-          value="156"
-          change="+3 new this semester"
-          changeType="positive"
-          icon={Users}
-          gradient="gradient-success"
+          title="Total Students"
+          value={stats?.totalStudents || 0}
+          icon={<GraduationCap className="w-6 h-6" />}
+          trend={{ value: 12, isPositive: true }}
+          className="animate-slide-up"
         />
         <MetricCard
-          title="Courses Evaluated"
-          value="89"
-          change="5 pending review"
-          changeType="neutral"
-          icon={BookOpen}
-          gradient="gradient-warning"
+          title="Active Courses"
+          value={stats?.totalCourses || 0}
+          icon={<BookOpen className="w-6 h-6" />}
+          trend={{ value: 3, isPositive: true }}
+          className="animate-slide-up"
         />
         <MetricCard
-          title="Average Satisfaction"
-          value="4.2/5"
-          change="+0.3 improvement"
-          changeType="positive"
-          icon={TrendingUp}
-          gradient="gradient-success"
+          title="Feedback Received"
+          value={stats?.totalFeedback || 0}
+          icon={<MessageSquare className="w-6 h-6" />}
+          trend={{ value: 8, isPositive: true }}
+          className="animate-slide-up"
         />
       </div>
 
-      {/* Charts Row */}
+      {/* Performance Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="animate-slide-up">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              System Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Average Rating</span>
+                <span className="font-semibold">{stats?.avgRating || 0}/5</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Response Rate</span>
+                <span className="font-semibold">78%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Active Departments</span>
+                <span className="font-semibold">6</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">This Semester</span>
+                <span className="font-semibold">
+                  {currentSemester?.semester_name || "N/A"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <ChartContainer
-          title="Satisfaction Trends"
-          description="Monthly student satisfaction and course completion rates"
+          title="Department Overview"
+          description="Students and courses by department"
+          className="animate-slide-up"
         >
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={performanceData}>
+            <BarChart data={departmentData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+              <XAxis 
+                dataKey="name" 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
               <YAxis stroke="hsl(var(--muted-foreground))" />
               <Tooltip 
                 contentStyle={{
@@ -93,90 +139,38 @@ const Dashboard = () => {
                   borderRadius: "8px"
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="satisfaction"
-                stroke="hsl(var(--chart-1))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-
-        <ChartContainer
-          title="Department Distribution"
-          description="Feedback responses by academic department"
-        >
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={departmentData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={120}
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {departmentData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
+              <Bar dataKey="students" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="courses" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
       </div>
 
-      {/* Recent Feedback Table */}
-      <ChartContainer
-        title="Recent Course Evaluations"
-        description="Latest feedback submissions requiring attention"
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Course</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Lecturer</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Rating</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentFeedback.map((item, index) => (
-                <tr key={index} className="border-b border-border hover:bg-muted/50 transition-colors">
-                  <td className="py-3 px-4 font-medium text-foreground">{item.course}</td>
-                  <td className="py-3 px-4 text-muted-foreground">{item.lecturer}</td>
-                  <td className="py-3 px-4">
-                    <span className="font-semibold text-foreground">{item.rating}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      item.status === 'excellent' 
-                        ? 'bg-success/10 text-success' 
-                        : item.status === 'good'
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-warning/10 text-warning'
-                    }`}>
-                      {item.status === 'excellent' ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : item.status === 'needs-attention' ? (
-                        <AlertTriangle className="w-3 h-3" />
-                      ) : (
-                        <TrendingUp className="w-3 h-3" />
-                      )}
-                      {item.status === 'excellent' ? 'Excellent' : 
-                       item.status === 'good' ? 'Good' : 'Needs Attention'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </ChartContainer>
+      {/* Quick Actions */}
+      <Card className="animate-slide-up">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building className="w-5 h-5" />
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <h4 className="font-medium">View Feedback</h4>
+              <p className="text-sm text-muted-foreground">Review latest feedback submissions</p>
+            </div>
+            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <h4 className="font-medium">Generate Reports</h4>
+              <p className="text-sm text-muted-foreground">Create detailed analytics reports</p>
+            </div>
+            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <h4 className="font-medium">Manage Courses</h4>
+              <p className="text-sm text-muted-foreground">Add or update course information</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
