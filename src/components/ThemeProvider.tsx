@@ -39,6 +39,9 @@ export function ThemeProvider({
 
     root.classList.remove("light", "dark");
     root.classList.add(theme);
+    
+    // Also set the color-scheme property for better browser integration
+    root.style.colorScheme = theme;
   }, [theme]);
 
   const value = {

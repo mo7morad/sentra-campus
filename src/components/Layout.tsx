@@ -13,7 +13,7 @@ export default function Layout({ children }: LayoutProps) {
       <AppSidebar />
       <SidebarInset>
         <Header />
-        <main className="flex-1 p-6 bg-gray-50 min-h-screen">
+        <main className="flex-1 p-6 bg-background min-h-screen">
           {children}
         </main>
       </SidebarInset>
