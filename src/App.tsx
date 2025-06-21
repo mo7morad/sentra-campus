@@ -8,7 +8,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Login from "@/pages/Login";
 import Layout from "@/components/Layout";
-import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import CourseEvaluation from "@/pages/CourseEvaluation";
 import LecturerPerformance from "@/pages/LecturerPerformance";
@@ -47,6 +46,7 @@ function App() {
                           <Route path="/course-evaluation" element={<CourseEvaluation />} />
                           <Route path="/lecturer-performance" element={<LecturerPerformance />} />
                           <Route path="/feedback-management" element={<FeedbackManagement />} />
+                          <Route path="/feedback" element={<Navigate to="/feedback-management" replace />} />
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
