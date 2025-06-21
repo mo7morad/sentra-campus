@@ -55,30 +55,30 @@ const Dashboard = () => {
         <MetricCard
           title="Total Lecturers"
           value={stats?.totalLecturers || 0}
-          icon={<Users className="w-6 h-6" />}
-          trend={{ value: 5, isPositive: true }}
-          className="animate-slide-up"
+          icon={Users}
+          change="+5% from last month"
+          changeType="positive"
         />
         <MetricCard
           title="Total Students"
           value={stats?.totalStudents || 0}
-          icon={<GraduationCap className="w-6 h-6" />}
-          trend={{ value: 12, isPositive: true }}
-          className="animate-slide-up"
+          icon={GraduationCap}
+          change="+12% from last month"
+          changeType="positive"
         />
         <MetricCard
           title="Active Courses"
           value={stats?.totalCourses || 0}
-          icon={<BookOpen className="w-6 h-6" />}
-          trend={{ value: 3, isPositive: true }}
-          className="animate-slide-up"
+          icon={BookOpen}
+          change="+3% from last month"
+          changeType="positive"
         />
         <MetricCard
           title="Feedback Received"
           value={stats?.totalFeedback || 0}
-          icon={<MessageSquare className="w-6 h-6" />}
-          trend={{ value: 8, isPositive: true }}
-          className="animate-slide-up"
+          icon={MessageSquare}
+          change="+8% from last month"
+          changeType="positive"
         />
       </div>
 
