@@ -23,12 +23,12 @@ const Dashboard = () => {
 
   if (statsLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-64"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-3 sm:p-4 lg:p-6">
+        <div className="animate-pulse space-y-4 sm:space-y-6">
+          <div className="h-6 sm:h-8 bg-muted rounded w-48 sm:w-64"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              <div key={i} className="h-24 sm:h-32 bg-muted rounded"></div>
             ))}
           </div>
         </div>
@@ -37,11 +37,11 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
             {currentSemester 
               ? `Current: ${currentSemester.semester_name} ${currentSemester.academic_year}`
               : "Campus Management Information System Overview"
@@ -51,13 +51,14 @@ const Dashboard = () => {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <MetricCard
           title="Total Lecturers"
           value={stats?.totalLecturers || 0}
           icon={Users}
           change="+5% from last month"
           changeType="positive"
+          className="hover-lift"
         />
         <MetricCard
           title="Total Students"
@@ -65,6 +66,7 @@ const Dashboard = () => {
           icon={GraduationCap}
           change="+12% from last month"
           changeType="positive"
+          className="hover-lift"
         />
         <MetricCard
           title="Active Courses"
@@ -72,6 +74,7 @@ const Dashboard = () => {
           icon={BookOpen}
           change="+3% from last month"
           changeType="positive"
+          className="hover-lift"
         />
         <MetricCard
           title="Feedback Received"
@@ -79,35 +82,36 @@ const Dashboard = () => {
           icon={MessageSquare}
           change="+8% from last month"
           changeType="positive"
+          className="hover-lift"
         />
       </div>
 
       {/* Performance Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="animate-slide-up">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <Card className="animate-slide-up hover-lift">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               System Overview
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Average Rating</span>
-                <span className="font-semibold">{stats?.avgRating || 0}/5</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Average Rating</span>
+                <span className="font-semibold text-sm sm:text-base">{stats?.avgRating || 0}/5</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Response Rate</span>
-                <span className="font-semibold">78%</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Response Rate</span>
+                <span className="font-semibold text-sm sm:text-base">78%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Active Departments</span>
-                <span className="font-semibold">6</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Active Departments</span>
+                <span className="font-semibold text-sm sm:text-base">6</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">This Semester</span>
-                <span className="font-semibold">
+                <span className="text-xs sm:text-sm text-muted-foreground">This Semester</span>
+                <span className="font-semibold text-sm sm:text-base">
                   {currentSemester?.semester_name || "N/A"}
                 </span>
               </div>
@@ -118,55 +122,59 @@ const Dashboard = () => {
         <ChartContainer
           title="Department Overview"
           description="Students and courses by department"
-          className="animate-slide-up"
+          className="animate-slide-up hover-lift"
         >
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={departmentData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis 
-                dataKey="name" 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis stroke="hsl(var(--muted-foreground))" />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px"
-                }}
-              />
-              <Bar dataKey="students" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="courses" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full h-64 sm:h-80 lg:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={departmentData} margin={{ top: 20, right: 20, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={10}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval={0}
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px"
+                  }}
+                />
+                <Bar dataKey="students" fill="hsl(var(--chart-1))" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="courses" fill="hsl(var(--chart-2))" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </ChartContainer>
       </div>
 
       {/* Quick Actions */}
-      <Card className="animate-slide-up">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="w-5 h-5" />
+      <Card className="animate-slide-up hover-lift">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Building className="w-4 h-4 sm:w-5 sm:h-5" />
             Quick Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <h4 className="font-medium">View Feedback</h4>
-              <p className="text-sm text-muted-foreground">Review latest feedback submissions</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <h4 className="font-medium text-sm sm:text-base">View Feedback</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Review latest feedback submissions</p>
             </div>
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <h4 className="font-medium">Generate Reports</h4>
-              <p className="text-sm text-muted-foreground">Create detailed analytics reports</p>
+            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <h4 className="font-medium text-sm sm:text-base">Generate Reports</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Create detailed analytics reports</p>
             </div>
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <h4 className="font-medium">Manage Courses</h4>
-              <p className="text-sm text-muted-foreground">Add or update course information</p>
+            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer sm:col-span-2 lg:col-span-1">
+              <h4 className="font-medium text-sm sm:text-base">Manage Courses</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Add or update course information</p>
             </div>
           </div>
         </CardContent>

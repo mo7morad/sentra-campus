@@ -107,6 +107,19 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+
+  /* Improved responsive text scaling */
+  html {
+    font-size: 14px;
+  }
+
+  @media (min-width: 640px) {
+    html {
+      font-size: 16px;
+    }
   }
 
   /* Professional animations */
@@ -138,6 +151,21 @@
   .gradient-destructive {
     background: linear-gradient(135deg, hsl(var(--destructive)) 0%, hsl(0 84% 52%) 100%);
   }
+
+  /* Mobile touch improvements */
+  button, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* Improved focus states for accessibility */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
 }
 
 @keyframes fadeIn {
@@ -162,9 +190,15 @@
   }
 }
 
-/* Custom scrollbar */
+/* Mobile-optimized scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
+}
+
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
 }
 
 ::-webkit-scrollbar-track {
@@ -178,4 +212,41 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary));
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.875rem;
+  }
+  
+  th, td {
+    padding: 0.5rem 0.25rem;
+  }
+}
+
+/* Fix modal and dialog positioning on mobile */
+@media (max-width: 640px) {
+  [data-radix-popper-content-wrapper] {
+    transform: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+}
+
+/* Toast improvements for mobile */
+@media (max-width: 640px) {
+  [data-sonner-toaster] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  [data-sonner-toast] {
+    margin: 0 0.75rem !important;
+    max-width: calc(100% - 1.5rem) !important;
+  }
 }
