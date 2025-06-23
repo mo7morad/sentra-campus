@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, MessageSquare, TrendingUp, GraduationCap, Building } from "lucide-react";
@@ -6,8 +5,11 @@ import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
 import { useDashboardStats, useCurrentSemester, useDepartments, useCourses, useStudents, useLecturers } from "@/hooks/useData";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useNavigate } from "react-router-dom";
+import { AcademicNavigator } from "@/components/AcademicNavigator";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: currentSemester } = useCurrentSemester();
   const { data: departments } = useDepartments();
@@ -50,6 +52,22 @@ const Dashboard = () => {
 
   const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'feedback':
+        navigate('/feedback-management');
+        break;
+      case 'reports':
+        navigate('/reports');
+        break;
+      case 'courses':
+        navigate('/course-evaluation');
+        break;
+      default:
+        break;
+    }
+  };
+
   if (statsLoading) {
     return (
       <div className="p-3 sm:p-4 lg:p-6">
@@ -78,6 +96,9 @@ const Dashboard = () => {
           </p>
         </div>
       </div>
+
+      {/* Academic Navigator */}
+      <AcademicNavigator />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -228,19 +249,28 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <div 
+                className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-all cursor-pointer hover:shadow-md hover:border-primary/50"
+                onClick={() => handleQuickAction('feedback')}
+              >
                 <h4 className="font-medium text-sm sm:text-base">View Feedback</h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Review {stats?.totalFeedback || 0} feedback submissions
                 </p>
               </div>
-              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <div 
+                className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-all cursor-pointer hover:shadow-md hover:border-primary/50"
+                onClick={() => handleQuickAction('reports')}
+              >
                 <h4 className="font-medium text-sm sm:text-base">Generate Reports</h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Create analytics for {departments?.length || 0} departments
                 </p>
               </div>
-              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              <div 
+                className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-all cursor-pointer hover:shadow-md hover:border-primary/50"
+                onClick={() => handleQuickAction('courses')}
+              >
                 <h4 className="font-medium text-sm sm:text-base">Manage Courses</h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Update {stats?.totalCourses || 0} active courses

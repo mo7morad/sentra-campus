@@ -13,7 +13,6 @@ import CourseEvaluation from "@/pages/CourseEvaluation";
 import LecturerPerformance from "@/pages/LecturerPerformance";
 import FeedbackManagement from "@/pages/FeedbackManagement";
 import Reports from "@/pages/Reports";
-import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -50,7 +49,6 @@ function App() {
                           <Route path="/feedback-management" element={<FeedbackManagement />} />
                           <Route path="/feedback" element={<Navigate to="/feedback-management" replace />} />
                           <Route path="/reports" element={<Reports />} />
-                          <Route path="/settings" element={<Settings />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </Layout>
