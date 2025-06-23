@@ -4,13 +4,17 @@ import { FileText, Download, Calendar, Filter, TrendingUp, Users, BookOpen, Mess
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePickerWithRange } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
+import { useDepartments, useAcademicSemesters, useDashboardStats } from "@/hooks/useData";
 
 const Reports = () => {
   const [reportType, setReportType] = useState("all");
   const [semester, setSemester] = useState("current");
   const [department, setDepartment] = useState("all");
+
+  const { data: departments } = useDepartments();
+  const { data: semesters } = useAcademicSemesters();
+  const { data: stats } = useDashboardStats();
 
   const reportTypes = [
     { id: "lecturer-performance", name: "Lecturer Performance Report", icon: Users, description: "Detailed analysis of lecturer ratings and feedback" },
@@ -27,15 +31,30 @@ const Reports = () => {
   ];
 
   const generateReport = (reportId: string) => {
-    console.log(`Generating report: ${reportId}`);
+    console.log(`Generating report: ${reportId} for department: ${department}, semester: ${semester}`);
     alert(`Report generation started for ${reportId}`);
   };
 
+  if (!departments || !semesters) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-64"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-96 bg-muted rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="animate-fade-in">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Reports & Analytics</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Reports & Analytics</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Generate comprehensive reports and analyze institutional performance
         </p>
       </div>
@@ -43,13 +62,13 @@ const Reports = () => {
       {/* Report Filters */}
       <Card className="animate-slide-up">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
             Report Filters
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select value={reportType} onValueChange={setReportType}>
               <SelectTrigger>
                 <SelectValue placeholder="Report Type" />
@@ -59,6 +78,7 @@ const Reports = () => {
                 <SelectItem value="lecturer-performance">Lecturer Performance</SelectItem>
                 <SelectItem value="course-evaluation">Course Evaluation</SelectItem>
                 <SelectItem value="feedback-summary">Feedback Summary</SelectItem>
+                <SelectItem value="department-overview">Department Overview</SelectItem>
               </SelectContent>
             </Select>
 
@@ -68,8 +88,11 @@ const Reports = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="current">Current Semester</SelectItem>
-                <SelectItem value="fall-2024">Fall 2024</SelectItem>
-                <SelectItem value="spring-2024">Spring 2024</SelectItem>
+                {semesters.map((sem) => (
+                  <SelectItem key={sem.id} value={sem.id.toString()}>
+                    {sem.semester_name} {sem.academic_year}
+                  </SelectItem>
+                ))}
                 <SelectItem value="all">All Semesters</SelectItem>
               </SelectContent>
             </Select>
@@ -80,9 +103,11 @@ const Reports = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="computer-science">Computer Science</SelectItem>
-                <SelectItem value="engineering">Engineering</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id.toString()}>
+                    {dept.department_name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -95,20 +120,20 @@ const Reports = () => {
       </Card>
 
       {/* Available Reports */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card className="animate-slide-up">
           <CardHeader>
-            <CardTitle>Available Reports</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Available Reports</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {reportTypes.map((report) => (
-                <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div key={report.id} className="flex items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <report.icon className="w-8 h-8 text-primary" />
+                    <report.icon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     <div>
-                      <h4 className="font-semibold text-foreground">{report.name}</h4>
-                      <p className="text-sm text-muted-foreground">{report.description}</p>
+                      <h4 className="font-semibold text-foreground text-sm sm:text-base">{report.name}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{report.description}</p>
                     </div>
                   </div>
                   <Button 
@@ -116,8 +141,8 @@ const Reports = () => {
                     onClick={() => generateReport(report.id)}
                     className="flex items-center gap-2"
                   >
-                    <Download className="w-4 h-4" />
-                    Generate
+                    <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Generate</span>
                   </Button>
                 </div>
               ))}
@@ -127,17 +152,17 @@ const Reports = () => {
 
         <Card className="animate-slide-up">
           <CardHeader>
-            <CardTitle>Recent Reports</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Recent Reports</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {recentReports.map((report, index) => (
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-muted-foreground" />
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                     <div>
-                      <h4 className="font-medium text-foreground">{report.name}</h4>
-                      <p className="text-sm text-muted-foreground">{report.date}</p>
+                      <h4 className="font-medium text-foreground text-sm sm:text-base">{report.name}</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{report.date}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -145,8 +170,8 @@ const Reports = () => {
                       {report.status}
                     </Badge>
                     {report.status === "completed" && (
-                      <Button size="sm" variant="outline">
-                        <Download className="w-4 h-4" />
+                      <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                        <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     )}
                   </div>
@@ -160,25 +185,25 @@ const Reports = () => {
       {/* Quick Stats */}
       <Card className="animate-slide-up">
         <CardHeader>
-          <CardTitle>Report Statistics</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Report Statistics</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">47</div>
-              <p className="text-sm text-muted-foreground">Reports Generated</p>
+              <div className="text-xl sm:text-2xl font-bold text-primary">47</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Reports Generated</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">12</div>
-              <p className="text-sm text-muted-foreground">This Month</p>
+              <div className="text-xl sm:text-2xl font-bold text-primary">12</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">This Month</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">3.2GB</div>
-              <p className="text-sm text-muted-foreground">Total Data</p>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{stats?.totalFeedback || 0}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Feedback</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">98%</div>
-              <p className="text-sm text-muted-foreground">Completion Rate</p>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{departments.length}</div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Departments</p>
             </div>
           </div>
         </CardContent>
