@@ -58,7 +58,6 @@ const Dashboard = () => {
           icon={Users}
           change="+5% from last month"
           changeType="positive"
-          className="hover-lift"
         />
         <MetricCard
           title="Total Students"
@@ -66,7 +65,6 @@ const Dashboard = () => {
           icon={GraduationCap}
           change="+12% from last month"
           changeType="positive"
-          className="hover-lift"
         />
         <MetricCard
           title="Active Courses"
@@ -74,7 +72,6 @@ const Dashboard = () => {
           icon={BookOpen}
           change="+3% from last month"
           changeType="positive"
-          className="hover-lift"
         />
         <MetricCard
           title="Feedback Received"
@@ -82,7 +79,6 @@ const Dashboard = () => {
           icon={MessageSquare}
           change="+8% from last month"
           changeType="positive"
-          className="hover-lift"
         />
       </div>
 

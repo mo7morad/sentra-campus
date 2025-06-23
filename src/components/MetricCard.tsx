@@ -2,6 +2,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface MetricCardProps {
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
   gradient?: string;
+  className?: string;
 }
 
 export function MetricCard({
@@ -18,7 +20,8 @@ export function MetricCard({
   change,
   changeType = "neutral",
   icon: Icon,
-  gradient = "gradient-primary"
+  gradient = "gradient-primary",
+  className
 }: MetricCardProps) {
   const changeColor = {
     positive: "text-success",
@@ -27,7 +30,7 @@ export function MetricCard({
   }[changeType];
 
   return (
-    <Card className="hover-lift animate-fade-in">
+    <Card className={cn("hover-lift animate-fade-in", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
