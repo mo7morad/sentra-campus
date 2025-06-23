@@ -82,6 +82,40 @@ export const useCourses = () => {
   });
 };
 
+export const useCourseOfferings = () => {
+  return useQuery({
+    queryKey: ['course-offerings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('course_offerings')
+        .select(`
+          *,
+          courses (
+            course_code,
+            course_name,
+            departments (
+              department_name
+            )
+          ),
+          lecturers (
+            first_name,
+            last_name,
+            lecturer_code
+          ),
+          academic_semesters (
+            semester_name,
+            academic_year
+          )
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+};
+
 export const useFeedback = () => {
   return useQuery({
     queryKey: ['feedback'],
@@ -131,8 +165,34 @@ export const useCurrentSemester = () => {
         .eq('is_current', true)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        // If no current semester is set, get the most recent one
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('academic_semesters')
+          .select('*')
+          .order('start_date', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (fallbackError) throw fallbackError;
+        return fallbackData as AcademicSemester;
+      }
       return data as AcademicSemester;
+    },
+  });
+};
+
+export const useAcademicSemesters = () => {
+  return useQuery({
+    queryKey: ['academic-semesters'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('academic_semesters')
+        .select('*')
+        .order('start_date', { ascending: false });
+      
+      if (error) throw error;
+      return data as AcademicSemester[];
     },
   });
 };
@@ -153,10 +213,27 @@ export const useFeedbackCategories = () => {
   });
 };
 
+export const useFeedbackStatus = () => {
+  return useQuery({
+    queryKey: ['feedback-status'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('feedback_status')
+        .select('*')
+        .order('status_name');
+      
+      if (error) throw error;
+      return data as FeedbackStatus[];
+    },
+  });
+};
+
 export const useDashboardStats = () => {
   return useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
+      console.log('Fetching dashboard stats...');
+      
       // Get counts for dashboard stats
       const [
         { count: totalLecturers },
@@ -170,6 +247,8 @@ export const useDashboardStats = () => {
         supabase.from('feedback').select('*', { count: 'exact', head: true })
       ]);
 
+      console.log('Counts fetched:', { totalLecturers, totalStudents, totalCourses, totalFeedback });
+
       // Get average rating
       const { data: avgRatingData } = await supabase
         .from('feedback')
@@ -180,13 +259,115 @@ export const useDashboardStats = () => {
         ? avgRatingData.reduce((sum, item) => sum + (item.overall_rating || 0), 0) / avgRatingData.length
         : 0;
 
-      return {
+      console.log('Average rating calculated:', avgRating);
+
+      const stats = {
         totalLecturers: totalLecturers || 0,
         totalStudents: totalStudents || 0,
         totalCourses: totalCourses || 0,
         totalFeedback: totalFeedback || 0,
         avgRating: Math.round(avgRating * 10) / 10
       };
+
+      console.log('Final dashboard stats:', stats);
+      return stats;
     },
+  });
+};
+
+// Additional specialized hooks for specific data needs
+export const useLecturerById = (lecturerId: string) => {
+  return useQuery({
+    queryKey: ['lecturer', lecturerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lecturers')
+        .select(`
+          *,
+          departments (
+            department_name
+          )
+        `)
+        .eq('id', lecturerId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!lecturerId,
+  });
+};
+
+export const useCourseById = (courseId: string) => {
+  return useQuery({
+    queryKey: ['course', courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          departments (
+            department_name
+          )
+        `)
+        .eq('id', courseId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!courseId,
+  });
+};
+
+export const useFeedbackByLecturer = (lecturerId: string) => {
+  return useQuery({
+    queryKey: ['feedback-by-lecturer', lecturerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('feedback')
+        .select(`
+          *,
+          course_offerings!inner (
+            lecturer_id,
+            courses (
+              course_name,
+              course_code
+            )
+          )
+        `)
+        .eq('course_offerings.lecturer_id', lecturerId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!lecturerId,
+  });
+};
+
+export const useFeedbackByCourse = (courseId: string) => {
+  return useQuery({
+    queryKey: ['feedback-by-course', courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('feedback')
+        .select(`
+          *,
+          course_offerings!inner (
+            course_id,
+            lecturers (
+              first_name,
+              last_name
+            )
+          )
+        `)
+        .eq('course_offerings.course_id', courseId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!courseId,
   });
 };

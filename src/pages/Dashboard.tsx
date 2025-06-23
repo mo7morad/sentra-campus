@@ -4,22 +4,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, MessageSquare, TrendingUp, GraduationCap, Building } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
-import { useDashboardStats, useCurrentSemester } from "@/hooks/useData";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useDashboardStats, useCurrentSemester, useDepartments, useCourses, useStudents, useLecturers } from "@/hooks/useData";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: currentSemester } = useCurrentSemester();
+  const { data: departments } = useDepartments();
+  const { data: courses } = useCourses();
+  const { data: students } = useStudents();
+  const { data: lecturers } = useLecturers();
 
-  // Sample chart data - in production this would come from your database
-  const departmentData = [
-    { name: "Computer Science", students: 45, courses: 8 },
-    { name: "Engineering", students: 38, courses: 6 },
-    { name: "Mathematics", students: 28, courses: 5 },
-    { name: "Physics", students: 22, courses: 4 },
-    { name: "English", students: 15, courses: 3 },
-    { name: "Business", students: 32, courses: 5 },
-  ];
+  // Generate department data from real database data
+  const departmentData = React.useMemo(() => {
+    if (!departments || !students || !courses) return [];
+    
+    return departments.map(dept => {
+      const deptStudents = students.filter(student => student.department_id === dept.id);
+      const deptCourses = courses.filter(course => course.department_id === dept.id);
+      
+      return {
+        name: dept.department_name,
+        students: deptStudents.length,
+        courses: deptCourses.length
+      };
+    }).sort((a, b) => b.students - a.students).slice(0, 8); // Top 8 departments
+  }, [departments, students, courses]);
+
+  // Generate enrollment status data from real student data
+  const enrollmentStatusData = React.useMemo(() => {
+    if (!students) return [];
+    
+    const statusCounts = students.reduce((acc, student) => {
+      const status = student.student_status || 'Active';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      name: status,
+      value: count,
+      percentage: Math.round((count / students.length) * 100)
+    }));
+  }, [students]);
+
+  const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
   if (statsLoading) {
     return (
@@ -98,12 +127,14 @@ const Dashboard = () => {
                 <span className="font-semibold text-sm sm:text-base">{stats?.avgRating || 0}/5</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Response Rate</span>
-                <span className="font-semibold text-sm sm:text-base">78%</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Total Departments</span>
+                <span className="font-semibold text-sm sm:text-base">{departments?.length || 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Active Departments</span>
-                <span className="font-semibold text-sm sm:text-base">6</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Active Lecturers</span>
+                <span className="font-semibold text-sm sm:text-base">
+                  {lecturers?.filter(l => l.is_active).length || 0}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm text-muted-foreground">This Semester</span>
@@ -150,31 +181,75 @@ const Dashboard = () => {
         </ChartContainer>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="animate-slide-up hover-lift">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Building className="w-4 h-4 sm:w-5 sm:h-5" />
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <h4 className="font-medium text-sm sm:text-base">View Feedback</h4>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Review latest feedback submissions</p>
-            </div>
-            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <h4 className="font-medium text-sm sm:text-base">Generate Reports</h4>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Create detailed analytics reports</p>
-            </div>
-            <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer sm:col-span-2 lg:col-span-1">
-              <h4 className="font-medium text-sm sm:text-base">Manage Courses</h4>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Add or update course information</p>
-            </div>
+      {/* Additional Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <ChartContainer
+          title="Student Enrollment Status"
+          description="Distribution of student status"
+          className="animate-slide-up hover-lift"
+        >
+          <div className="w-full h-64 sm:h-80 lg:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={enrollmentStatusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percentage }) => `${name} (${percentage}%)`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {enrollmentStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px"
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-        </CardContent>
-      </Card>
+        </ChartContainer>
+
+        {/* Quick Actions */}
+        <Card className="animate-slide-up hover-lift">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Building className="w-4 h-4 sm:w-5 sm:h-5" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
+              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                <h4 className="font-medium text-sm sm:text-base">View Feedback</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Review {stats?.totalFeedback || 0} feedback submissions
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                <h4 className="font-medium text-sm sm:text-base">Generate Reports</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Create analytics for {departments?.length || 0} departments
+                </p>
+              </div>
+              <div className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                <h4 className="font-medium text-sm sm:text-base">Manage Courses</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Update {stats?.totalCourses || 0} active courses
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
