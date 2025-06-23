@@ -125,17 +125,25 @@ export const useFeedback = () => {
         .select(`
           *,
           course_offerings (
+            id,
             section,
             classroom,
+            enrolled_count,
+            lecturer_id,
+            course_id,
+            semester_id,
             courses (
+              id,
               course_code,
               course_name
             ),
             lecturers (
+              id,
               first_name,
               last_name
             ),
             academic_semesters (
+              id,
               semester_name,
               academic_year
             )
