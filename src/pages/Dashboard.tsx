@@ -1,40 +1,65 @@
-import React from "react";
+
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, MessageSquare, TrendingUp, GraduationCap, Building } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
-import { useDashboardStats, useCurrentSemester, useDepartments, useCourses, useStudents, useLecturers } from "@/hooks/useData";
+import { useDashboardStats, useCurrentSemester, useDepartments, useCourses, useStudents, useLecturers, useCourseOfferings, useFeedback } from "@/hooks/useData";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { AcademicNavigator } from "@/components/AcademicNavigator";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: currentSemester } = useCurrentSemester();
   const { data: departments } = useDepartments();
   const { data: courses } = useCourses();
   const { data: students } = useStudents();
   const { data: lecturers } = useLecturers();
+  const { data: courseOfferings } = useCourseOfferings();
+  const { data: feedback } = useFeedback();
+  
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
 
-  // Generate department data from real database data
-  const departmentData = React.useMemo(() => {
-    if (!departments || !students || !courses) return [];
+  // Filter data based on selected semester
+  const filteredData = useMemo(() => {
+    const semesterId = selectedSemesterId || currentSemester?.id.toString();
+    if (!semesterId) return { courseOfferings: [], feedback: [] };
+
+    const semesterOfferings = courseOfferings?.filter(
+      offering => offering.academic_semesters?.id?.toString() === semesterId
+    ) || [];
+
+    const semesterFeedback = feedback?.filter(
+      fb => fb.course_offerings?.academic_semesters?.id?.toString() === semesterId
+    ) || [];
+
+    return {
+      courseOfferings: semesterOfferings,
+      feedback: semesterFeedback
+    };
+  }, [courseOfferings, feedback, selectedSemesterId, currentSemester]);
+
+  // Generate department data from filtered course offerings
+  const departmentData = useMemo(() => {
+    if (!departments || !students || !filteredData.courseOfferings) return [];
     
     return departments.map(dept => {
       const deptStudents = students.filter(student => student.department_id === dept.id);
-      const deptCourses = courses.filter(course => course.department_id === dept.id);
+      const deptOfferings = filteredData.courseOfferings.filter(
+        offering => offering.courses?.departments?.id === dept.id
+      );
       
       return {
         name: dept.department_name,
         students: deptStudents.length,
-        courses: deptCourses.length
+        courses: deptOfferings.length
       };
-    }).sort((a, b) => b.students - a.students).slice(0, 8); // Top 8 departments
-  }, [departments, students, courses]);
+    }).sort((a, b) => b.students - a.students).slice(0, 8);
+  }, [departments, students, filteredData.courseOfferings]);
 
   // Generate enrollment status data from real student data
-  const enrollmentStatusData = React.useMemo(() => {
+  const enrollmentStatusData = useMemo(() => {
     if (!students) return [];
     
     const statusCounts = students.reduce((acc, student) => {
@@ -49,6 +74,26 @@ const Dashboard = () => {
       percentage: Math.round((count / students.length) * 100)
     }));
   }, [students]);
+
+  // Calculate semester-specific stats
+  const semesterStats = useMemo(() => {
+    const activeLecturers = lecturers?.filter(l => l.is_active).length || 0;
+    const totalStudents = students?.length || 0;
+    const activeCourses = filteredData.courseOfferings.length;
+    const totalFeedback = filteredData.feedback.length;
+    
+    const avgRating = filteredData.feedback.length > 0
+      ? filteredData.feedback.reduce((sum, fb) => sum + (fb.overall_rating || 0), 0) / filteredData.feedback.length
+      : 0;
+
+    return {
+      totalLecturers: activeLecturers,
+      totalStudents,
+      totalCourses: activeCourses,
+      totalFeedback,
+      avgRating: Math.round(avgRating * 10) / 10
+    };
+  }, [lecturers, students, filteredData]);
 
   const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
@@ -68,7 +113,11 @@ const Dashboard = () => {
     }
   };
 
-  if (statsLoading) {
+  const handleSemesterChange = (semesterId: string) => {
+    setSelectedSemesterId(semesterId);
+  };
+
+  if (!currentSemester) {
     return (
       <div className="p-3 sm:p-4 lg:p-6">
         <div className="animate-pulse space-y-4 sm:space-y-6">
@@ -89,43 +138,43 @@ const Dashboard = () => {
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h2>
           <p className="text-sm sm:text-base text-muted-foreground">
-            {currentSemester 
-              ? `Current: ${currentSemester.semester_name} ${currentSemester.academic_year}`
-              : "Campus Management Information System Overview"
-            }
+            Campus Management Information System Overview
           </p>
         </div>
       </div>
 
       {/* Academic Navigator */}
-      <AcademicNavigator />
+      <AcademicNavigator 
+        onSemesterChange={handleSemesterChange}
+        selectedSemesterId={selectedSemesterId}
+      />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <MetricCard
           title="Total Lecturers"
-          value={stats?.totalLecturers || 0}
+          value={semesterStats.totalLecturers}
           icon={Users}
           change="+5% from last month"
           changeType="positive"
         />
         <MetricCard
           title="Total Students"
-          value={stats?.totalStudents || 0}
+          value={semesterStats.totalStudents}
           icon={GraduationCap}
           change="+12% from last month"
           changeType="positive"
         />
         <MetricCard
           title="Active Courses"
-          value={stats?.totalCourses || 0}
+          value={semesterStats.totalCourses}
           icon={BookOpen}
           change="+3% from last month"
           changeType="positive"
         />
         <MetricCard
           title="Feedback Received"
-          value={stats?.totalFeedback || 0}
+          value={semesterStats.totalFeedback}
           icon={MessageSquare}
           change="+8% from last month"
           changeType="positive"
@@ -145,7 +194,7 @@ const Dashboard = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm text-muted-foreground">Average Rating</span>
-                <span className="font-semibold text-sm sm:text-base">{stats?.avgRating || 0}/5</span>
+                <span className="font-semibold text-sm sm:text-base">{semesterStats.avgRating}/5</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs sm:text-sm text-muted-foreground">Total Departments</span>
@@ -255,7 +304,7 @@ const Dashboard = () => {
               >
                 <h4 className="font-medium text-sm sm:text-base">View Feedback</h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Review {stats?.totalFeedback || 0} feedback submissions
+                  Review {semesterStats.totalFeedback} feedback submissions
                 </p>
               </div>
               <div 
@@ -268,12 +317,12 @@ const Dashboard = () => {
                 </p>
               </div>
               <div 
-                className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-all cursor-pointer hover:shadow-md hover:border-primary/50"
+                className="p-3 sm:p-4 border border-border rounded-lg hover:bg-muted/50 transition-all cursor-pointer hover:border-primary/50"
                 onClick={() => handleQuickAction('courses')}
               >
                 <h4 className="font-medium text-sm sm:text-base">Manage Courses</h4>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Update {stats?.totalCourses || 0} active courses
+                  Update {semesterStats.totalCourses} active courses
                 </p>
               </div>
             </div>

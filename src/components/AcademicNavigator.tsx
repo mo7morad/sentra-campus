@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,23 @@ import { Calendar, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useAcademicSemesters, useCurrentSemester } from "@/hooks/useData";
 import { Button } from "@/components/ui/button";
 
-export const AcademicNavigator = () => {
+interface AcademicNavigatorProps {
+  onSemesterChange?: (semesterId: string) => void;
+  selectedSemesterId?: string;
+}
+
+export const AcademicNavigator = ({ onSemesterChange, selectedSemesterId }: AcademicNavigatorProps) => {
   const { data: semesters } = useAcademicSemesters();
   const { data: currentSemester } = useCurrentSemester();
   const [selectedSemester, setSelectedSemester] = useState<string>("");
+
+  useEffect(() => {
+    if (selectedSemesterId) {
+      setSelectedSemester(selectedSemesterId);
+    } else if (currentSemester && !selectedSemester) {
+      setSelectedSemester(currentSemester.id.toString());
+    }
+  }, [currentSemester, selectedSemesterId]);
 
   if (!semesters || !currentSemester) {
     return (
@@ -22,7 +35,8 @@ export const AcademicNavigator = () => {
     );
   }
 
-  const currentIndex = semesters.findIndex(s => s.id === currentSemester.id);
+  const activeSemester = semesters.find(s => s.id.toString() === selectedSemester) || currentSemester;
+  const currentIndex = semesters.findIndex(s => s.id.toString() === selectedSemester);
   const previousSemester = currentIndex > 0 ? semesters[currentIndex - 1] : null;
   const nextSemester = currentIndex < semesters.length - 1 ? semesters[currentIndex + 1] : null;
 
@@ -32,6 +46,19 @@ export const AcademicNavigator = () => {
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const handleSemesterChange = (newSemesterId: string) => {
+    setSelectedSemester(newSemesterId);
+    onSemesterChange?.(newSemesterId);
+  };
+
+  const handleNavigation = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && previousSemester) {
+      handleSemesterChange(previousSemester.id.toString());
+    } else if (direction === 'next' && nextSemester) {
+      handleSemesterChange(nextSemester.id.toString());
+    }
   };
 
   return (
@@ -50,14 +77,16 @@ export const AcademicNavigator = () => {
               <Clock className="w-5 h-5 text-primary" />
               <div>
                 <h3 className="font-semibold text-foreground">
-                  {currentSemester.semester_name} {currentSemester.academic_year}
+                  {activeSemester.semester_name} {activeSemester.academic_year}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatDate(currentSemester.start_date)} - {formatDate(currentSemester.end_date)}
+                  {formatDate(activeSemester.start_date)} - {formatDate(activeSemester.end_date)}
                 </p>
               </div>
             </div>
-            <Badge variant="default" className="bg-primary">Current</Badge>
+            {activeSemester.is_current && (
+              <Badge variant="default" className="bg-primary">Current</Badge>
+            )}
           </div>
 
           {/* Navigation Controls */}
@@ -68,7 +97,7 @@ export const AcademicNavigator = () => {
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2"
-                  onClick={() => setSelectedSemester(previousSemester.id.toString())}
+                  onClick={() => handleNavigation('prev')}
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
@@ -80,7 +109,7 @@ export const AcademicNavigator = () => {
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2"
-                  onClick={() => setSelectedSemester(nextSemester.id.toString())}
+                  onClick={() => handleNavigation('next')}
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
@@ -90,8 +119,8 @@ export const AcademicNavigator = () => {
 
             {/* Semester Selector */}
             <Select 
-              value={selectedSemester || currentSemester.id.toString()} 
-              onValueChange={setSelectedSemester}
+              value={selectedSemester} 
+              onValueChange={handleSemesterChange}
             >
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="Select semester" />
@@ -111,7 +140,7 @@ export const AcademicNavigator = () => {
             </Select>
           </div>
 
-          {/* Quick Stats for Current Semester */}
+          {/* Quick Stats for Selected Semester */}
           <div className="grid grid-cols-3 gap-3 pt-2 border-t">
             <div className="text-center">
               <div className="text-lg font-semibold text-primary">{semesters.length}</div>
@@ -119,13 +148,13 @@ export const AcademicNavigator = () => {
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-primary">
-                {new Date(currentSemester.end_date).getTime() > Date.now() ? 'Active' : 'Completed'}
+                {new Date(activeSemester.end_date).getTime() > Date.now() ? 'Active' : 'Completed'}
               </div>
-              <p className="text-xs text-muted-foreground">Status</p>
+              <p className="text-xs text-muted-foreground">Period</p>
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-primary">
-                {Math.ceil((new Date(currentSemester.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
+                {Math.max(0, Math.ceil((new Date(activeSemester.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}
               </div>
               <p className="text-xs text-muted-foreground">Days Remaining</p>
             </div>

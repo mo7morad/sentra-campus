@@ -1,11 +1,9 @@
-
 import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart,
   Users,
   BookOpen,
   MessageSquare,
-  Settings,
   LogOut,
   User,
 } from "lucide-react";
@@ -32,7 +30,6 @@ const navigation = [
   { title: "Course Evaluation", url: "/course-evaluation", icon: BookOpen },
   { title: "Feedback Management", url: "/feedback-management", icon: MessageSquare },
   { title: "Reports & Analytics", url: "/reports", icon: BarChart },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
