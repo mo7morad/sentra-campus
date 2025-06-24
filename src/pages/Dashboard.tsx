@@ -3,18 +3,15 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
+import { AcademicNavigator } from "@/components/AcademicNavigator";
 import { 
   Users, 
   BookOpen, 
   MessageSquare, 
-  TrendingUp, 
-  GraduationCap,
-  UserCheck,
-  Clock,
   Star
 } from "lucide-react";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { useDashboardStats, useDepartments, useAcademicSemesters } from "@/hooks/useData";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useDashboardStats, useDepartments, useFeedback } from "@/hooks/useData";
 
 // Chart color scheme
 const COLORS = {
@@ -30,47 +27,64 @@ const Dashboard = () => {
   
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: departments } = useDepartments();
-  const { data: semesters } = useAcademicSemesters();
+  const { data: feedback } = useFeedback();
 
-  // Sample performance data
-  const performanceData = [
-    { month: 'Jan', satisfaction: 4.2, engagement: 3.8, performance: 4.0 },
-    { month: 'Feb', satisfaction: 4.3, engagement: 4.0, performance: 4.1 },
-    { month: 'Mar', satisfaction: 4.1, engagement: 3.9, performance: 3.9 },
-    { month: 'Apr', satisfaction: 4.4, engagement: 4.2, performance: 4.3 },
-    { month: 'May', satisfaction: 4.5, engagement: 4.3, performance: 4.4 },
-    { month: 'Jun', satisfaction: 4.6, engagement: 4.4, performance: 4.5 },
+  // Process real feedback data for charts
+  const processFeedbackData = () => {
+    if (!feedback) return [];
+    
+    const monthlyData: { [key: string]: { positive: number, neutral: number, negative: number } } = {};
+    
+    feedback.forEach(item => {
+      if (item.overall_rating) {
+        const month = new Date(item.created_at!).toLocaleDateString('en-US', { month: 'short' });
+        if (!monthlyData[month]) {
+          monthlyData[month] = { positive: 0, neutral: 0, negative: 0 };
+        }
+        
+        if (item.overall_rating >= 4) {
+          monthlyData[month].positive++;
+        } else if (item.overall_rating >= 3) {
+          monthlyData[month].neutral++;
+        } else {
+          monthlyData[month].negative++;
+        }
+      }
+    });
+    
+    return Object.entries(monthlyData).map(([month, data]) => ({
+      month,
+      ...data
+    }));
+  };
+
+  // Department performance with real data
+  const departmentData = departments?.map(dept => {
+    const deptFeedback = feedback?.filter(f => 
+      f.course_offerings?.courses?.departments?.id === dept.id
+    ) || [];
+    
+    const avgRating = deptFeedback.length > 0 
+      ? deptFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / deptFeedback.length
+      : 0;
+    
+    return {
+      name: dept.department_name.length > 10 
+        ? dept.department_name.substring(0, 10) + '...' 
+        : dept.department_name,
+      feedback: deptFeedback.length,
+      rating: Math.round(avgRating * 10) / 10
+    };
+  }) || [];
+
+  // Student enrollment status (simplified)
+  const enrollmentData = [
+    { name: 'Active', value: 85, color: COLORS.secondary },
+    { name: 'On Leave', value: 10, color: COLORS.accent },
+    { name: 'Inactive', value: 5, color: COLORS.danger }
   ];
 
-  const departmentData = departments?.map(dept => ({
-    name: dept.department_name,
-    students: Math.floor(Math.random() * 200) + 50,
-    satisfaction: Math.floor(Math.random() * 100) + 70
-  })) || [];
-
-  const feedbackTrends = [
-    { month: 'Jan', positive: 65, neutral: 25, negative: 10 },
-    { month: 'Feb', positive: 70, neutral: 22, negative: 8 },
-    { month: 'Mar', positive: 68, neutral: 24, negative: 8 },
-    { month: 'Apr', positive: 73, neutral: 20, negative: 7 },
-    { month: 'May', positive: 75, neutral: 18, negative: 7 },
-    { month: 'Jun', positive: 78, neutral: 16, negative: 6 },
-  ];
-
-  // Updated student enrollment data with realistic distribution
-  const studentEnrollmentData = [
-    { name: 'Active Students', value: 85, color: COLORS.secondary },
-    { name: 'On Leave', value: 8, color: COLORS.accent },
-    { name: 'Graduated', value: 5, color: COLORS.primary },
-    { name: 'Inactive', value: 2, color: COLORS.danger }
-  ];
-
-  const recentActivities = [
-    { type: 'feedback', message: 'New course evaluation submitted for CSE301', time: '2 hours ago', icon: MessageSquare },
-    { type: 'enrollment', message: '15 new students enrolled this week', time: '1 day ago', icon: Users },
-    { type: 'course', message: 'EEE201 capacity increased to 45 students', time: '2 days ago', icon: BookOpen },
-    { type: 'performance', message: 'Q2 performance reports generated', time: '3 days ago', icon: TrendingUp },
-  ];
+  const feedbackTrends = processFeedbackData();
 
   if (statsLoading) {
     return (
@@ -99,6 +113,9 @@ const Dashboard = () => {
         </p>
       </div>
 
+      {/* Academic Navigator */}
+      <AcademicNavigator />
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <MetricCard
@@ -126,8 +143,8 @@ const Dashboard = () => {
           gradient="gradient-warning"
         />
         <MetricCard
-          title="Avg Satisfaction"
-          value="4.5/5"
+          title="Avg Rating"
+          value={`${stats?.avgRating || 0}/5`}
           change="+0.3 from last semester"
           changeType="positive"
           icon={Star}
@@ -135,78 +152,11 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts Grid */}
+      {/* Simplified Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         
-        {/* Performance Trends */}
-        <ChartContainer title="Performance Trends" description="Monthly satisfaction and engagement metrics">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={performanceData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-              <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }} 
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="satisfaction" 
-                stroke={COLORS.primary} 
-                strokeWidth={3}
-                dot={{ fill: COLORS.primary, strokeWidth: 2, r: 4 }}
-                name="Satisfaction"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="engagement" 
-                stroke={COLORS.secondary} 
-                strokeWidth={3}
-                dot={{ fill: COLORS.secondary, strokeWidth: 2, r: 4 }}
-                name="Engagement"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-
-        {/* Student Enrollment Status with corrected data */}
-        <ChartContainer title="Student Enrollment Status" description="Current distribution of student enrollment">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={studentEnrollmentData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {studentEnrollmentData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value) => [`${value}%`, 'Percentage']}
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }} 
-              />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-
-        {/* Department Performance */}
-        <ChartContainer title="Department Performance" description="Student count and satisfaction by department">
+        {/* Department Performance - Simplified */}
+        <ChartContainer title="Department Feedback" description="Feedback count and average rating by department">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={departmentData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -216,86 +166,126 @@ const Dashboard = () => {
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  borderRadius: '8px'
                 }} 
               />
               <Legend />
-              <Bar dataKey="students" fill={COLORS.primary} name="Students" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="satisfaction" fill={COLORS.secondary} name="Satisfaction" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="feedback" fill={COLORS.primary} name="Feedback Count" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="rating" fill={COLORS.secondary} name="Avg Rating" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
 
-        {/* Feedback Trends */}
-        <ChartContainer title="Feedback Sentiment Trends" description="Distribution of positive, neutral, and negative feedback">
+        {/* Student Status - Simplified */}
+        <ChartContainer title="Student Status" description="Current student enrollment distribution">
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={feedbackTrends}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-              <YAxis stroke="#64748b" fontSize={12} />
+            <PieChart>
+              <Pie
+                data={enrollmentData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {enrollmentData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
               <Tooltip 
+                formatter={(value) => [`${value}%`, 'Percentage']}
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  borderRadius: '8px'
                 }} 
               />
               <Legend />
-              <Area 
-                type="monotone" 
-                dataKey="positive" 
-                stackId="1" 
-                stroke={COLORS.secondary} 
-                fill={COLORS.secondary}
-                fillOpacity={0.8}
-                name="Positive"
-              />
-              <Area 
-                type="monotone" 
-                dataKey="neutral" 
-                stackId="1" 
-                stroke={COLORS.accent} 
-                fill={COLORS.accent}
-                fillOpacity={0.8}
-                name="Neutral"
-              />
-              <Area 
-                type="monotone" 
-                dataKey="negative" 
-                stackId="1" 
-                stroke={COLORS.danger} 
-                fill={COLORS.danger}
-                fillOpacity={0.8}
-                name="Negative"
-              />
-            </AreaChart>
+            </PieChart>
           </ResponsiveContainer>
         </ChartContainer>
-      </div>
 
-      {/* Recent Activities */}
-      <Card className="animate-slide-up">
-        <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Recent System Activities</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
-              <div key={index} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <activity.icon className="w-4 h-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{activity.message}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
-                </div>
+        {/* Feedback Trends - Real Data */}
+        {feedbackTrends.length > 0 && (
+          <ChartContainer title="Feedback Trends" description="Monthly feedback sentiment from real data">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={feedbackTrends}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+                <YAxis stroke="#64748b" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="positive" 
+                  stroke={COLORS.secondary} 
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.secondary, strokeWidth: 2, r: 4 }}
+                  name="Positive"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="neutral" 
+                  stroke={COLORS.accent} 
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.accent, strokeWidth: 2, r: 4 }}
+                  name="Neutral"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="negative" 
+                  stroke={COLORS.danger} 
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.danger, strokeWidth: 2, r: 4 }}
+                  name="Negative"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        )}
+
+        {/* Rating Distribution */}
+        <Card className="hover-lift animate-slide-up">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Quick Stats
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total Lecturers</span>
+                <span className="text-lg font-bold text-primary">{stats?.totalLecturers || 0}</span>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Active Departments</span>
+                <span className="text-lg font-bold text-secondary">{departments?.length || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Feedback This Month</span>
+                <span className="text-lg font-bold text-accent">
+                  {feedback?.filter(f => {
+                    const created = new Date(f.created_at!);
+                    const now = new Date();
+                    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+                  }).length || 0}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Average Response Rate</span>
+                <span className="text-lg font-bold text-purple">78%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

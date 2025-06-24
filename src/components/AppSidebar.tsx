@@ -21,10 +21,7 @@ import {
   FileBarChart,
   BarChart3,
   TrendingUp,
-  LogOut,
-  Settings
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
@@ -47,11 +44,7 @@ const navigation = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-  };
+  const { user } = useAuth();
 
   const isActive = (url: string) => {
     return location.pathname === url;
@@ -111,41 +104,19 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t p-4">
         {user && (
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3 px-2 py-1">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-semibold">
-                  {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {user.first_name} {user.last_name}
-                </p>
-                <p className="text-xs text-sidebar-foreground/70 truncate">
-                  {user.email}
-                </p>
-              </div>
+          <div className="flex items-center space-x-3 px-2 py-1">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-semibold">
+                {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+              </span>
             </div>
-            
-            <div className="grid grid-cols-2 gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user.first_name} {user.last_name}
+              </p>
+              <p className="text-xs text-sidebar-foreground/70 truncate">
+                {user.email}
+              </p>
             </div>
           </div>
         )}

@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Menu } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -26,7 +27,7 @@ const Header = () => {
   return (
     <header className="bg-background border-b border-border px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
-        {/* Mobile menu trigger */}
+        {/* Mobile menu trigger and title */}
         <div className="flex items-center gap-2 sm:gap-3">
           <SidebarTrigger className="md:hidden" />
           <div className="hidden sm:block">
@@ -52,6 +53,10 @@ const Header = () => {
             {user.first_name?.[0]}{user.last_name?.[0]}
           </div>
           
+          {/* Theme Toggle */}
+          <ThemeToggle />
+          
+          {/* Logout Button */}
           <Button 
             variant="outline" 
             size="sm" 
