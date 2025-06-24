@@ -60,9 +60,11 @@ const Dashboard = () => {
 
   // Department performance with real data
   const departmentData = departments?.map(dept => {
-    const deptFeedback = feedback?.filter(f => 
-      f.course_offerings?.courses?.departments?.id === dept.id
-    ) || [];
+    const deptFeedback = feedback?.filter(f => {
+      // Access department through course_offerings -> courses -> departments
+      const courseDepartmentId = f.course_offerings?.courses?.department_id;
+      return courseDepartmentId === dept.id;
+    }) || [];
     
     const avgRating = deptFeedback.length > 0 
       ? deptFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / deptFeedback.length
@@ -251,7 +253,7 @@ const Dashboard = () => {
           </ChartContainer>
         )}
 
-        {/* Rating Distribution */}
+        {/* Quick Stats */}
         <Card className="hover-lift animate-slide-up">
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-foreground">
