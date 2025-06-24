@@ -444,7 +444,7 @@ const Dashboard = () => {
                 <Legend 
                   verticalAlign="bottom" 
                   height={36}
-                  formatter={(value, entry) => `${value} (${entry.payload?.percentage}%)`}
+                  formatter={(value, entry) => `${value} (${entry.payload.percentage}%)`}
                 />
               </PieChart>
             </ResponsiveContainer>
