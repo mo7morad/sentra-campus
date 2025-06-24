@@ -3,15 +3,16 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartContainer } from "@/components/ChartContainer";
-import { AcademicNavigator } from "@/components/AcademicNavigator";
 import { 
   Users, 
   BookOpen, 
   MessageSquare, 
-  Star
+  Star,
+  TrendingUp,
+  Award
 } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { useDashboardStats, useDepartments, useFeedback } from "@/hooks/useData";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { useDashboardStats, useDepartments, useFeedback, useStudents } from "@/hooks/useData";
 
 // Chart color scheme
 const COLORS = {
@@ -19,7 +20,10 @@ const COLORS = {
   secondary: '#10B981', 
   accent: '#F59E0B',
   danger: '#EF4444',
-  purple: '#8B5CF6'
+  purple: '#8B5CF6',
+  indigo: '#6366F1',
+  pink: '#EC4899',
+  teal: '#14B8A6'
 };
 
 const Dashboard = () => {
@@ -28,40 +32,58 @@ const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: departments } = useDepartments();
   const { data: feedback } = useFeedback();
+  const { data: students } = useStudents();
 
-  // Process real feedback data for charts
-  const processFeedbackData = () => {
+  // Process real student status data
+  const processStudentStatusData = () => {
+    if (!students) return [];
+    
+    const statusCounts = students.reduce((acc, student) => {
+      const status = student.student_status || 'Active';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      name: status,
+      value: count,
+      color: status === 'Active' ? COLORS.secondary : COLORS.danger
+    }));
+  };
+
+  // Process feedback trends by month with real data
+  const processFeedbackTrends = () => {
     if (!feedback) return [];
     
-    const monthlyData: { [key: string]: { positive: number, neutral: number, negative: number } } = {};
+    const monthlyData: { [key: string]: { total: number, avgRating: number, ratings: number[] } } = {};
     
     feedback.forEach(item => {
-      if (item.overall_rating) {
-        const month = new Date(item.created_at!).toLocaleDateString('en-US', { month: 'short' });
+      if (item.overall_rating && item.created_at) {
+        const date = new Date(item.created_at);
+        const month = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        
         if (!monthlyData[month]) {
-          monthlyData[month] = { positive: 0, neutral: 0, negative: 0 };
+          monthlyData[month] = { total: 0, avgRating: 0, ratings: [] };
         }
         
-        if (item.overall_rating >= 4) {
-          monthlyData[month].positive++;
-        } else if (item.overall_rating >= 3) {
-          monthlyData[month].neutral++;
-        } else {
-          monthlyData[month].negative++;
-        }
+        monthlyData[month].total++;
+        monthlyData[month].ratings.push(item.overall_rating);
       }
     });
     
-    return Object.entries(monthlyData).map(([month, data]) => ({
-      month,
-      ...data
-    }));
+    return Object.entries(monthlyData)
+      .map(([month, data]) => ({
+        month,
+        feedback: data.total,
+        avgRating: Math.round((data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length) * 10) / 10
+      }))
+      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+      .slice(-6); // Last 6 months
   };
 
   // Department performance with real data
   const departmentData = departments?.map(dept => {
     const deptFeedback = feedback?.filter(f => {
-      // Access department through course_offerings -> courses -> departments
       const courseDepartmentId = f.course_offerings?.courses?.department_id;
       return courseDepartmentId === dept.id;
     }) || [];
@@ -71,22 +93,59 @@ const Dashboard = () => {
       : 0;
     
     return {
-      name: dept.department_name.length > 10 
-        ? dept.department_name.substring(0, 10) + '...' 
+      name: dept.department_name.length > 12 
+        ? dept.department_name.substring(0, 12) + '...' 
         : dept.department_name,
       feedback: deptFeedback.length,
-      rating: Math.round(avgRating * 10) / 10
+      rating: Math.round(avgRating * 10) / 10,
+      fullName: dept.department_name
     };
-  }) || [];
+  }).filter(dept => dept.feedback > 0) // Only show departments with feedback
+    .sort((a, b) => b.rating - a.rating) // Sort by rating descending
+    .slice(0, 8) || []; // Top 8 departments
 
-  // Student enrollment status (simplified)
-  const enrollmentData = [
-    { name: 'Active', value: 85, color: COLORS.secondary },
-    { name: 'On Leave', value: 10, color: COLORS.accent },
-    { name: 'Inactive', value: 5, color: COLORS.danger }
-  ];
+  // Rating distribution data
+  const ratingDistribution = () => {
+    if (!feedback) return [];
+    
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    
+    feedback.forEach(f => {
+      if (f.overall_rating) {
+        distribution[f.overall_rating as keyof typeof distribution]++;
+      }
+    });
 
-  const feedbackTrends = processFeedbackData();
+    return Object.entries(distribution).map(([rating, count]) => ({
+      rating: `${rating} Star${rating !== '1' ? 's' : ''}`,
+      count,
+      percentage: Math.round((count / feedback.length) * 100)
+    }));
+  };
+
+  // Monthly feedback volume
+  const monthlyFeedbackVolume = () => {
+    if (!feedback) return [];
+    
+    const monthlyData: { [key: string]: number } = {};
+    
+    feedback.forEach(item => {
+      if (item.created_at) {
+        const date = new Date(item.created_at);
+        const month = date.toLocaleDateString('en-US', { month: 'short' });
+        monthlyData[month] = (monthlyData[month] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(monthlyData)
+      .map(([month, count]) => ({ month, count }))
+      .slice(-12); // Last 12 months
+  };
+
+  const studentStatusData = processStudentStatusData();
+  const feedbackTrends = processFeedbackTrends();
+  const ratingDist = ratingDistribution();
+  const monthlyVolume = monthlyFeedbackVolume();
 
   if (statsLoading) {
     return (
@@ -98,7 +157,7 @@ const Dashboard = () => {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="h-96 bg-muted rounded"></div>
           ))}
         </div>
@@ -114,9 +173,6 @@ const Dashboard = () => {
           Monitor key performance indicators and institutional metrics
         </p>
       </div>
-
-      {/* Academic Navigator */}
-      <AcademicNavigator />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -154,49 +210,67 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Simplified Charts */}
+      {/* Main Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         
-        {/* Department Performance - Simplified */}
-        <ChartContainer title="Department Feedback" description="Feedback count and average rating by department">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={departmentData}>
+        {/* Department Performance */}
+        <ChartContainer title="Department Performance" description="Average rating and feedback count by department">
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={departmentData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+              <XAxis 
+                dataKey="name" 
+                stroke="#64748b" 
+                fontSize={11}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
               <YAxis stroke="#64748b" fontSize={12} />
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px'
-                }} 
+                }}
+                formatter={(value, name) => [
+                  name === 'rating' ? `${value}/5` : value,
+                  name === 'rating' ? 'Avg Rating' : 'Feedback Count'
+                ]}
+                labelFormatter={(label) => {
+                  const dept = departmentData.find(d => d.name === label);
+                  return dept?.fullName || label;
+                }}
               />
               <Legend />
-              <Bar dataKey="feedback" fill={COLORS.primary} name="Feedback Count" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="rating" fill={COLORS.secondary} name="Avg Rating" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="feedback" fill={COLORS.primary} name="Feedback" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="rating" fill={COLORS.secondary} name="Rating" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
 
-        {/* Student Status - Simplified */}
-        <ChartContainer title="Student Status" description="Current student enrollment distribution">
-          <ResponsiveContainer width="100%" height={300}>
+        {/* Student Status Distribution */}
+        <ChartContainer title="Student Status Distribution" description="Current enrollment status of all students">
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
-                data={enrollmentData}
+                data={studentStatusData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
-                outerRadius={100}
+                outerRadius={120}
                 paddingAngle={2}
                 dataKey="value"
               >
-                {enrollmentData.map((entry, index) => (
+                {studentStatusData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value) => [`${value}%`, 'Percentage']}
+                formatter={(value, name, props) => [
+                  `${value} students (${Math.round((value / (stats?.totalStudents || 1)) * 100)}%)`,
+                  props.payload.name
+                ]}
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   border: '1px solid #e2e8f0',
@@ -208,55 +282,90 @@ const Dashboard = () => {
           </ResponsiveContainer>
         </ChartContainer>
 
-        {/* Feedback Trends - Real Data */}
-        {feedbackTrends.length > 0 && (
-          <ChartContainer title="Feedback Trends" description="Monthly feedback sentiment from real data">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={feedbackTrends}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }} 
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="positive" 
-                  stroke={COLORS.secondary} 
-                  strokeWidth={3}
-                  dot={{ fill: COLORS.secondary, strokeWidth: 2, r: 4 }}
-                  name="Positive"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="neutral" 
-                  stroke={COLORS.accent} 
-                  strokeWidth={3}
-                  dot={{ fill: COLORS.accent, strokeWidth: 2, r: 4 }}
-                  name="Neutral"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="negative" 
-                  stroke={COLORS.danger} 
-                  strokeWidth={3}
-                  dot={{ fill: COLORS.danger, strokeWidth: 2, r: 4 }}
-                  name="Negative"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        )}
+        {/* Feedback Trends Over Time */}
+        <ChartContainer title="Feedback Trends" description="Monthly feedback volume and average ratings">
+          <ResponsiveContainer width="100%" height={350}>
+            <AreaChart data={feedbackTrends} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="feedbackGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="ratingGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.secondary} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.secondary} stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+              <YAxis stroke="#64748b" fontSize={12} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}
+                formatter={(value, name) => [
+                  name === 'avgRating' ? `${value}/5` : value,
+                  name === 'avgRating' ? 'Avg Rating' : 'Feedback Count'
+                ]}
+              />
+              <Legend />
+              <Area 
+                type="monotone" 
+                dataKey="feedback" 
+                stroke={COLORS.primary}
+                fillOpacity={1}
+                fill="url(#feedbackGradient)"
+                name="Feedback"
+              />
+              <Area 
+                type="monotone" 
+                dataKey="avgRating" 
+                stroke={COLORS.secondary}
+                fillOpacity={1}
+                fill="url(#ratingGradient)"
+                name="Avg Rating"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartContainer>
 
+        {/* Rating Distribution */}
+        <ChartContainer title="Rating Distribution" description="Distribution of feedback ratings across all submissions">
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={ratingDist} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="rating" stroke="#64748b" fontSize={12} />
+              <YAxis stroke="#64748b" fontSize={12} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}
+                formatter={(value) => [`${value} submissions`, 'Count']}
+              />
+              <Bar 
+                dataKey="count" 
+                fill={COLORS.accent}
+                radius={[4, 4, 0, 0]}
+                name="Submissions"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+
+      </div>
+
+      {/* Bottom Row - Quick Stats and Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        
         {/* Quick Stats */}
         <Card className="hover-lift animate-slide-up">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-foreground">
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary" />
               Quick Stats
             </CardTitle>
           </CardHeader>
@@ -281,12 +390,50 @@ const Dashboard = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Average Response Rate</span>
-                <span className="text-lg font-bold text-purple">78%</span>
+                <span className="text-sm font-medium">Top Rated Dept</span>
+                <span className="text-lg font-bold text-purple">
+                  {departmentData[0]?.name || 'N/A'}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Monthly Volume Trend */}
+        <Card className="hover-lift animate-slide-up lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Monthly Feedback Volume
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={monthlyVolume}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+                <YAxis stroke="#64748b" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value) => [`${value} submissions`, 'Feedback']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke={COLORS.indigo} 
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.indigo, strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
