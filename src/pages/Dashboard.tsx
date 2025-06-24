@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
@@ -15,13 +16,11 @@ import {
   Target,
   AlertTriangle,
   CheckCircle,
-  Clock,
   UserCheck
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { useDashboardStats, useDepartments, useFeedback, useStudents, useLecturers } from "@/hooks/useData";
 
-// Executive color palette
 const COLORS = {
   primary: '#1e40af',
   success: '#059669', 
@@ -36,10 +35,8 @@ const COLORS = {
   orange: '#ea580c'
 };
 
-const CHART_COLORS = ['#1e40af', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0d9488'];
-
 const Dashboard = () => {
-  console.log("Executive Dashboard rendered");
+  console.log("Dashboard rendered");
   
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: departments } = useDepartments();
@@ -47,7 +44,6 @@ const Dashboard = () => {
   const { data: students } = useStudents();
   const { data: lecturers } = useLecturers();
 
-  // Executive KPI calculations
   const calculateExecutiveMetrics = () => {
     if (!feedback || !stats || !students) return {
       satisfactionRate: 0,
@@ -59,7 +55,7 @@ const Dashboard = () => {
     const highRatings = feedback.filter(f => f.overall_rating && f.overall_rating >= 4).length;
     const satisfactionRate = feedback.length > 0 ? Math.round((highRatings / feedback.length) * 100) : 0;
     
-    const expectedResponses = stats.totalStudents * 0.25; // 25% expected response rate
+    const expectedResponses = stats.totalStudents * 0.25;
     const responseRate = Math.round((feedback.length / expectedResponses) * 100);
     
     const criticalIssues = feedback.filter(f => f.overall_rating && f.overall_rating <= 2).length;
@@ -68,7 +64,6 @@ const Dashboard = () => {
     return { satisfactionRate, responseRate, criticalIssues, activeStudents };
   };
 
-  // Department performance for executive overview
   const getDepartmentPerformance = () => {
     if (!departments || !feedback) return [];
     
@@ -100,7 +95,6 @@ const Dashboard = () => {
       .sort((a, b) => b.rating - a.rating);
   };
 
-  // Student engagement trends
   const getEngagementTrends = () => {
     if (!feedback) return [];
     
@@ -129,13 +123,12 @@ const Dashboard = () => {
         avgRating: data.ratings.length > 0 
           ? Math.round((data.ratings.reduce((sum, r) => sum + r, 0) / data.ratings.length) * 10) / 10
           : 0,
-        engagement: Math.min(Math.round((data.responses / 10) * 100), 100) // Normalize engagement
+        engagement: Math.min(Math.round((data.responses / 10) * 100), 100)
       }))
-      .sort((a, b) => new Date(`${a.month} 01`).getTime() - new Date(`${b.month} 01`).getTime())
+      .sort((a, b) => new Date(a.month + ' 01').getTime() - new Date(b.month + ' 01').getTime())
       .slice(-6);
   };
 
-  // Quality distribution for institutional insights
   const getQualityDistribution = () => {
     if (!feedback || feedback.length === 0) return [];
     
@@ -161,7 +154,6 @@ const Dashboard = () => {
     }).filter(item => item.value > 0);
   };
 
-  // Faculty performance summary
   const getFacultyOverview = () => {
     if (!lecturers || !feedback) return { performing: 0, developing: 0, critical: 0 };
     
@@ -210,7 +202,6 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="space-y-8 p-8">
-        {/* Executive Header */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">
             Executive Dashboard
@@ -220,7 +211,6 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Executive KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Student Satisfaction"
@@ -256,10 +246,7 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Main Analytics Section */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          
-          {/* Department Performance - Takes 2 columns */}
           <div className="xl:col-span-2">
             <ChartContainer 
               title="Department Performance Analysis" 
@@ -312,7 +299,6 @@ const Dashboard = () => {
             </ChartContainer>
           </div>
 
-          {/* Faculty Performance Summary */}
           <ChartContainer 
             title="Faculty Performance" 
             description="Teaching excellence distribution"
@@ -356,10 +342,7 @@ const Dashboard = () => {
           </ChartContainer>
         </div>
 
-        {/* Trends and Quality Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Engagement Trends */}
           <ChartContainer 
             title="Student Engagement Trends" 
             description="Response patterns and satisfaction over time"
@@ -408,7 +391,6 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </ChartContainer>
 
-          {/* Quality Distribution */}
           <ChartContainer 
             title="Educational Quality Distribution" 
             description="Overall satisfaction ratings breakdown"
@@ -453,7 +435,6 @@ const Dashboard = () => {
           </ChartContainer>
         </div>
 
-        {/* Executive Summary */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-slate-800 via-slate-900 to-blue-900 text-white overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
           <CardHeader className="relative">
@@ -484,7 +465,7 @@ const Dashboard = () => {
               </div>
               <div className="text-center group">
                 <div className="inline-flex p-3 rounded-full bg-yellow-500/20 group-hover:bg-yellow-500/30 transition-colors mb-4">
-                  <Clock className="w-8 h-8 text-yellow-400" />
+                  <MessageSquare className="w-8 h-8 text-yellow-400" />
                 </div>
                 <h3 className="font-bold text-lg mb-2">Feedback Engagement</h3>
                 <p className="text-yellow-200 text-sm leading-relaxed">
