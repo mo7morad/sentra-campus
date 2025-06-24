@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
@@ -131,7 +132,7 @@ const Dashboard = () => {
           : 0,
         engagement: Math.min(Math.round((data.responses / 10) * 100), 100) // Normalize engagement
       }))
-      .sort((a, b) => new Date(a.month + ' 01').getTime() - new Date(b.month + ' 01').getTime())
+      .sort((a, b) => new Date(`${a.month} 01`).getTime() - new Date(`${b.month} 01`).getTime())
       .slice(-6);
   };
 
