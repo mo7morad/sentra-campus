@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/MetricCard";
@@ -106,12 +105,12 @@ const Dashboard = () => {
 
   // Rating distribution data
   const ratingDistribution = () => {
-    if (!feedback) return [];
+    if (!feedback || feedback.length === 0) return [];
     
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     
     feedback.forEach(f => {
-      if (f.overall_rating) {
+      if (f.overall_rating && f.overall_rating >= 1 && f.overall_rating <= 5) {
         distribution[f.overall_rating as keyof typeof distribution]++;
       }
     });
@@ -268,7 +267,7 @@ const Dashboard = () => {
               </Pie>
               <Tooltip 
                 formatter={(value, name, props) => [
-                  `${value} students (${Math.round((value / (stats?.totalStudents || 1)) * 100)}%)`,
+                  `${value} students (${Math.round((Number(value) / (stats?.totalStudents || 1)) * 100)}%)`,
                   props.payload.name
                 ]}
                 contentStyle={{ 
