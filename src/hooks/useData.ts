@@ -94,6 +94,7 @@ export const useCourseOfferings = () => {
             course_code,
             course_name,
             departments (
+              id,
               department_name
             )
           ),
@@ -103,6 +104,7 @@ export const useCourseOfferings = () => {
             lecturer_code
           ),
           academic_semesters (
+            id,
             semester_name,
             academic_year
           )
