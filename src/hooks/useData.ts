@@ -137,7 +137,8 @@ export const useFeedback = () => {
             courses (
               id,
               course_code,
-              course_name
+              course_name,
+              department_id
             ),
             lecturers (
               id,
