@@ -426,7 +426,7 @@ const Dashboard = () => {
                   verticalAlign="bottom" 
                   height={36}
                   formatter={(value, entry) => {
-                    const percentage = entry.payload?.percentage || 0;
+                    const percentage = entry.payload && entry.payload.percentage ? entry.payload.percentage : 0;
                     return `${value} (${percentage}%)`;
                   }}
                 />
