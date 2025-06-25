@@ -5,7 +5,10 @@ import {
   Users, 
   GraduationCap, 
   BookOpen, 
-  MessageSquare
+  MessageSquare,
+  TrendingUp,
+  UserCheck,
+  Star
 } from "lucide-react";
 import { 
   PieChart, 
@@ -19,7 +22,9 @@ import {
   Tooltip, 
   ResponsiveContainer,
   RadialBarChart,
-  RadialBar
+  RadialBar,
+  AreaChart,
+  Area
 } from "recharts";
 import { useStudents, useLecturers, useCourses, useCourseOfferings, useFeedback } from "@/hooks/useData";
 
@@ -32,7 +37,10 @@ const COLORS = {
   success: 'hsl(var(--chart-1))',
   warning: 'hsl(var(--chart-4))',
   danger: 'hsl(var(--destructive))',
-  muted: 'hsl(var(--muted))'
+  muted: 'hsl(var(--muted))',
+  positive: '#10b981',
+  neutral: '#f59e0b',
+  negative: '#ef4444'
 };
 
 const Dashboard = () => {
@@ -42,13 +50,37 @@ const Dashboard = () => {
   const { data: courseOfferings } = useCourseOfferings();
   const { data: feedback, isLoading: feedbackLoading } = useFeedback();
 
-  // Students Overview - Fixed to properly count inactive students
+  // Top KPI Cards Data
+  const topKPIs = useMemo(() => {
+    if (!students || !courseOfferings || !lecturers || !feedback) return {
+      totalStudents: 0,
+      activeCourses: 0,
+      totalLecturers: 0,
+      avgRating: 0
+    };
+
+    const totalStudents = students.length;
+    const activeCourses = courseOfferings?.filter(co => co.is_active).length || 0;
+    const totalLecturers = lecturers.length;
+    const validFeedback = feedback.filter(f => f.overall_rating !== null);
+    const avgRating = validFeedback.length > 0 ? 
+      validFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / validFeedback.length : 0;
+
+    return {
+      totalStudents,
+      activeCourses,
+      totalLecturers,
+      avgRating: Math.round(avgRating * 10) / 10
+    };
+  }, [students, courseOfferings, lecturers, feedback]);
+
+  // Students Overview - Fixed to properly count all students
   const studentsOverview = useMemo(() => {
     if (!students) return { active: 0, inactive: 0, total: 0, chartData: [] };
     
-    const active = students.filter(s => s.student_status === 'Active').length;
-    const inactive = students.filter(s => s.student_status !== 'Active').length;
     const total = students.length;
+    const active = students.filter(s => s.is_active === true).length;
+    const inactive = students.filter(s => s.is_active === false).length;
     
     return {
       active,
@@ -163,30 +195,51 @@ const Dashboard = () => {
     };
   }, [courses, courseOfferings, feedback]);
 
-  // Feedback Overview - Enhanced with more context
-  const feedbackOverview = useMemo(() => {
-    if (!feedback) return { 
-      total: 0, 
-      avgRating: 0, 
-      distribution: [] 
-    };
+  // Feedback Sentiment Trends - Stacked area chart data
+  const feedbackSentimentTrends = useMemo(() => {
+    if (!feedback) return [];
     
-    const validFeedback = feedback.filter(f => f.overall_rating !== null);
-    const total = validFeedback.length;
-    const avgRating = total > 0 ? 
-      validFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / total : 0;
+    // Group feedback by month for last 6 months
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     
-    const distribution = [1, 2, 3, 4, 5].map(rating => ({
-      rating: `${rating}★`,
-      count: validFeedback.filter(f => f.overall_rating === rating).length,
-      fill: rating <= 2 ? COLORS.danger : rating === 3 ? COLORS.warning : COLORS.success
-    }));
+    const monthlyData = new Map();
     
-    return {
-      total,
-      avgRating: Math.round(avgRating * 10) / 10,
-      distribution
-    };
+    // Initialize last 6 months
+    for (let i = 0; i < 6; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM format
+      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      monthlyData.set(monthKey, {
+        month: monthName,
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      });
+    }
+    
+    // Process feedback data
+    feedback.forEach(f => {
+      if (!f.overall_rating || !f.created_at) return;
+      
+      const feedbackDate = new Date(f.created_at);
+      if (feedbackDate < sixMonthsAgo) return;
+      
+      const monthKey = feedbackDate.toISOString().slice(0, 7);
+      const monthData = monthlyData.get(monthKey);
+      
+      if (monthData) {
+        if (f.overall_rating >= 4) {
+          monthData.positive++;
+        } else if (f.overall_rating === 3) {
+          monthData.neutral++;
+        } else if (f.overall_rating <= 2) {
+          monthData.negative++;
+        }
+      }
+    });
+    
+    return Array.from(monthlyData.values()).reverse();
   }, [feedback]);
 
   const isLoading = studentsLoading || lecturersLoading || coursesLoading || feedbackLoading;
@@ -195,6 +248,11 @@ const Dashboard = () => {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-64"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 bg-muted rounded-lg"></div>
+          ))}
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-80 lg:h-96 bg-muted rounded-lg"></div>
@@ -214,6 +272,65 @@ const Dashboard = () => {
         <p className="text-sm lg:text-base text-muted-foreground">
           Management overview and key performance metrics
         </p>
+      </div>
+
+      {/* Top KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-sm border bg-card text-card-foreground">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl lg:text-3xl font-bold text-foreground">
+                  {topKPIs.totalStudents}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Students</p>
+              </div>
+              <Users className="h-6 w-6 lg:h-8 lg:w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border bg-card text-card-foreground">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl lg:text-3xl font-bold text-foreground">
+                  {topKPIs.activeCourses}
+                </p>
+                <p className="text-sm text-muted-foreground">Active Courses</p>
+              </div>
+              <BookOpen className="h-6 w-6 lg:h-8 lg:w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border bg-card text-card-foreground">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl lg:text-3xl font-bold text-foreground">
+                  {topKPIs.totalLecturers}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Lecturers</p>
+              </div>
+              <GraduationCap className="h-6 w-6 lg:h-8 lg:w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border bg-card text-card-foreground">
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl lg:text-3xl font-bold text-foreground">
+                  {topKPIs.avgRating}/5
+                </p>
+                <p className="text-sm text-muted-foreground">Avg Rating</p>
+              </div>
+              <Star className="h-6 w-6 lg:h-8 lg:w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Dashboard Grid */}
@@ -394,57 +511,82 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 4. Feedback Overview */}
+        {/* 4. Feedback Sentiment Trends */}
         <Card className="shadow-sm border bg-card text-card-foreground">
           <CardHeader className="pb-3 lg:pb-4">
             <CardTitle className="flex items-center gap-2 text-base lg:text-lg font-semibold">
-              <MessageSquare className="h-4 w-4 lg:h-5 lg:w-5" style={{ color: COLORS.feedback }} />
-              Feedback Overview
+              <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5" style={{ color: COLORS.feedback }} />
+              Feedback Sentiment Trends
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 lg:p-6 pt-0">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="text-center">
-                <div className="text-xl lg:text-2xl font-bold text-foreground">
-                  {feedbackOverview.total}
+                <div className="text-lg lg:text-xl font-bold" style={{color: COLORS.positive}}>
+                  {feedbackSentimentTrends.reduce((sum, month) => sum + month.positive, 0)}
                 </div>
-                <div className="text-xs lg:text-sm text-muted-foreground">Total Reviews</div>
+                <div className="text-xs text-muted-foreground">Positive</div>
               </div>
               <div className="text-center">
-                <div className="text-xl lg:text-2xl font-bold" style={{color: COLORS.feedback}}>
-                  {feedbackOverview.avgRating}/5
+                <div className="text-lg lg:text-xl font-bold" style={{color: COLORS.neutral}}>
+                  {feedbackSentimentTrends.reduce((sum, month) => sum + month.neutral, 0)}
                 </div>
-                <div className="text-xs lg:text-sm text-muted-foreground">Average Rating</div>
+                <div className="text-xs text-muted-foreground">Neutral</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg lg:text-xl font-bold" style={{color: COLORS.negative}}>
+                  {feedbackSentimentTrends.reduce((sum, month) => sum + month.negative, 0)}
+                </div>
+                <div className="text-xs text-muted-foreground">Negative</div>
               </div>
             </div>
             
-            {/* Distribution Chart */}
+            {/* Stacked Area Chart */}
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={feedbackOverview.distribution}>
+              <AreaChart data={feedbackSentimentTrends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                 <XAxis 
-                  dataKey="rating" 
+                  dataKey="month" 
                   stroke="hsl(var(--muted-foreground))" 
-                  fontSize={11} 
+                  fontSize={10} 
                 />
                 <YAxis 
                   stroke="hsl(var(--muted-foreground))" 
-                  fontSize={11} 
+                  fontSize={10} 
                 />
                 <Tooltip 
-                  formatter={(value: any) => [`${value} responses`, 'Count']}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--popover))',
                     borderColor: 'hsl(var(--border))',
                     color: 'hsl(var(--popover-foreground))'
                   }}
                 />
-                <Bar 
-                  dataKey="count" 
-                  radius={[4, 4, 0, 0]}
+                <Area
+                  type="monotone"
+                  dataKey="positive"
+                  stackId="1"
+                  stroke={COLORS.positive}
+                  fill={COLORS.positive}
+                  fillOpacity={0.6}
                 />
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="neutral"
+                  stackId="1"
+                  stroke={COLORS.neutral}
+                  fill={COLORS.neutral}
+                  fillOpacity={0.6}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="negative"
+                  stackId="1"
+                  stroke={COLORS.negative}
+                  fill={COLORS.negative}
+                  fillOpacity={0.6}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
