@@ -4,17 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Users, 
   BookOpen, 
-  MessageSquare, 
-  Star,
-  GraduationCap,
-  UserCheck,
+  GraduationCap, 
+  Building2,
   TrendingUp,
-  BarChart3
+  TrendingDown,
+  Activity,
+  BarChart3,
+  PieChart,
+  Star,
+  Calendar
 } from "lucide-react";
 import { 
   BarChart, 
   Bar, 
-  PieChart, 
+  PieChart as RechartsPieChart, 
   Pie, 
   Cell, 
   LineChart, 
@@ -30,7 +33,7 @@ import {
 } from "recharts";
 import { useDashboardStats, useDepartments, useFeedback, useStudents, useLecturers, useCourseOfferings } from "@/hooks/useData";
 
-// Professional color palette
+// Professional color palette for dashboard
 const COLORS = {
   primary: '#2563eb',
   secondary: '#10b981', 
@@ -38,22 +41,11 @@ const COLORS = {
   danger: '#ef4444',
   purple: '#8b5cf6',
   indigo: '#6366f1',
-  pink: '#ec4899',
   teal: '#14b8a6',
-  slate: '#64748b',
-  green: '#22c55e'
+  slate: '#64748b'
 };
 
-const CHART_COLORS = [
-  COLORS.primary,
-  COLORS.secondary,
-  COLORS.accent,
-  COLORS.purple,
-  COLORS.indigo,
-  COLORS.pink,
-  COLORS.teal,
-  COLORS.green
-];
+const CHART_COLORS = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.purple, COLORS.indigo, COLORS.teal];
 
 const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -63,91 +55,58 @@ const Dashboard = () => {
   const { data: lecturers } = useLecturers();
   const { data: courseOfferings } = useCourseOfferings();
 
-  // 1. Student Distribution by Department (Horizontal Bar Chart)
+  // Calculate key metrics
+  const keyMetrics = useMemo(() => {
+    const totalDepartments = departments?.length || 0;
+    const activeCourses = courseOfferings?.filter(co => co.is_active)?.length || 0;
+    const totalEnrollment = courseOfferings?.reduce((sum, co) => sum + (co.enrolled_count || 0), 0) || 0;
+    const avgRating = feedback?.length > 0 
+      ? feedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / feedback.length 
+      : 0;
+
+    return {
+      totalStudents: stats?.totalStudents || 0,
+      totalLecturers: stats?.totalLecturers || 0,
+      totalDepartments,
+      activeCourses,
+      totalEnrollment,
+      avgRating: Math.round(avgRating * 10) / 10,
+      totalFeedback: feedback?.length || 0
+    };
+  }, [stats, departments, courseOfferings, feedback]);
+
+  // Student distribution by department
   const studentsByDepartment = useMemo(() => {
     if (!students || !departments) return [];
     
-    const deptCounts = departments.map(dept => {
+    return departments.map(dept => {
       const studentCount = students.filter(student => student.department_id === dept.id).length;
       return {
-        name: dept.department_name.length > 20 
-          ? dept.department_name.substring(0, 20) + '...' 
+        name: dept.department_name.length > 15 
+          ? dept.department_name.substring(0, 15) + '...' 
           : dept.department_name,
         fullName: dept.department_name,
-        students: studentCount
+        students: studentCount,
+        percentage: students.length > 0 ? Math.round((studentCount / students.length) * 100) : 0
       };
     }).filter(dept => dept.students > 0)
       .sort((a, b) => b.students - a.students);
-    
-    return deptCounts;
   }, [students, departments]);
 
-  // 2. Students per Academic Year (Stacked Bar Chart)
-  const studentsByYear = useMemo(() => {
-    if (!students) return [];
-    
-    const yearCounts = students.reduce((acc, student) => {
-      const year = student.current_year || 1;
-      const status = student.student_status || 'Active';
-      
-      const yearKey = `Year ${year}`;
-      if (!acc[yearKey]) {
-        acc[yearKey] = { year: yearKey, Active: 0, Inactive: 0, Graduated: 0 };
-      }
-      
-      if (status === 'Active') acc[yearKey].Active++;
-      else if (status === 'Inactive') acc[yearKey].Inactive++;
-      else if (status === 'Graduated') acc[yearKey].Graduated++;
-      
-      return acc;
-    }, {} as Record<string, any>);
-    
-    return Object.values(yearCounts).sort((a: any, b: any) => a.year.localeCompare(b.year));
-  }, [students]);
-
-  // 3. Student Enrollment Status (Donut Chart)
+  // Student enrollment status
   const enrollmentStatus = useMemo(() => {
     if (!students) return [];
     
-    const statusCounts = students.reduce((acc, student) => {
-      const status = student.student_status === 'Active' ? 'Active' : 'Inactive';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const activeCount = students.filter(s => s.student_status === 'Active').length;
+    const inactiveCount = students.length - activeCount;
     
-    const total = students.length;
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      name: status,
-      value: count,
-      percentage: Math.round((count / total) * 100),
-      color: status === 'Active' ? COLORS.secondary : COLORS.danger
-    }));
+    return [
+      { name: 'Active', value: activeCount, color: COLORS.secondary },
+      { name: 'Inactive', value: inactiveCount, color: COLORS.slate }
+    ].filter(item => item.value > 0);
   }, [students]);
 
-  // 4. Lecturer Involvement (Bar Chart)
-  const lecturerInvolvement = useMemo(() => {
-    if (!lecturers || !courseOfferings) return [];
-    
-    const lecturerCourses = lecturers.map(lecturer => {
-      const activeCourses = courseOfferings.filter(
-        offering => offering.lecturer_id === lecturer.id && offering.is_active
-      ).length;
-      
-      return {
-        name: `${lecturer.first_name} ${lecturer.last_name}`.length > 15 
-          ? `${lecturer.first_name} ${lecturer.last_name}`.substring(0, 15) + '...'
-          : `${lecturer.first_name} ${lecturer.last_name}`,
-        fullName: `${lecturer.first_name} ${lecturer.last_name}`,
-        courses: activeCourses
-      };
-    }).filter(lecturer => lecturer.courses > 0)
-      .sort((a, b) => b.courses - a.courses)
-      .slice(0, 10);
-    
-    return lecturerCourses;
-  }, [lecturers, courseOfferings]);
-
-  // 5. Course Enrollment Trends (Line Chart)
+  // Course enrollment trends by semester
   const enrollmentTrends = useMemo(() => {
     if (!courseOfferings) return [];
     
@@ -171,8 +130,33 @@ const Dashboard = () => {
       .slice(-6);
   }, [courseOfferings]);
 
-  // 6. Feedback Sentiment Trend (Stacked Area Chart)
-  const feedbackSentiment = useMemo(() => {
+  // Lecturer workload analysis
+  const lecturerWorkload = useMemo(() => {
+    if (!lecturers || !courseOfferings) return [];
+    
+    return lecturers.map(lecturer => {
+      const activeCourses = courseOfferings.filter(
+        offering => offering.lecturer_id === lecturer.id && offering.is_active
+      );
+      
+      const totalEnrollment = activeCourses.reduce((sum, course) => sum + (course.enrolled_count || 0), 0);
+      
+      return {
+        name: `${lecturer.first_name} ${lecturer.last_name}`.length > 12 
+          ? `${lecturer.first_name.charAt(0)}. ${lecturer.last_name}` 
+          : `${lecturer.first_name} ${lecturer.last_name}`,
+        fullName: `${lecturer.first_name} ${lecturer.last_name}`,
+        courses: activeCourses.length,
+        enrollment: totalEnrollment,
+        department: lecturer.departments?.department_name || 'Unknown'
+      };
+    }).filter(lecturer => lecturer.courses > 0)
+      .sort((a, b) => b.courses - a.courses)
+      .slice(0, 8);
+  }, [lecturers, courseOfferings]);
+
+  // Feedback sentiment over time
+  const feedbackTrends = useMemo(() => {
     if (!feedback) return [];
     
     const monthlyData = feedback.reduce((acc, item) => {
@@ -182,13 +166,14 @@ const Dashboard = () => {
       const month = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       
       if (!acc[month]) {
-        acc[month] = { month, Positive: 0, Neutral: 0, Negative: 0 };
+        acc[month] = { month, Excellent: 0, Good: 0, Average: 0, Poor: 0 };
       }
       
       const rating = item.overall_rating;
-      if (rating >= 4) acc[month].Positive++;
-      else if (rating >= 3) acc[month].Neutral++;
-      else acc[month].Negative++;
+      if (rating === 5) acc[month].Excellent++;
+      else if (rating === 4) acc[month].Good++;
+      else if (rating === 3) acc[month].Average++;
+      else acc[month].Poor++;
       
       return acc;
     }, {} as Record<string, any>);
@@ -198,46 +183,18 @@ const Dashboard = () => {
       .slice(-6);
   }, [feedback]);
 
-  // 7. Department Overview Data
-  const departmentOverview = useMemo(() => {
-    if (!departments || !students || !courseOfferings || !feedback) return [];
-    
-    return departments.map(dept => {
-      const deptStudents = students.filter(s => s.department_id === dept.id);
-      const deptCourses = courseOfferings.filter(co => 
-        co.courses?.departments?.id === dept.id && co.is_active
-      );
-      const deptFeedback = feedback.filter(f => 
-        f.course_offerings?.courses?.departments?.id === dept.id
-      );
-      
-      const avgRating = deptFeedback.length > 0 
-        ? deptFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / deptFeedback.length
-        : 0;
-      
-      return {
-        id: dept.id,
-        name: dept.department_name,
-        students: deptStudents.length,
-        courses: deptCourses.length,
-        feedback: deptFeedback.length,
-        avgRating: Math.round(avgRating * 10) / 10
-      };
-    }).filter(dept => dept.students > 0 || dept.courses > 0);
-  }, [departments, students, courseOfferings, feedback]);
-
   if (statsLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-64"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-muted rounded"></div>
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-96 bg-muted rounded"></div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-80 bg-muted rounded"></div>
           ))}
         </div>
       </div>
@@ -245,76 +202,84 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="animate-fade-in">
-        <h1 className="text-3xl font-bold text-foreground mb-2">University Management Dashboard</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Management Dashboard</h1>
         <p className="text-muted-foreground">
-          Comprehensive overview of students, courses, lecturers, and feedback analytics
+          University system overview and key performance indicators
         </p>
       </div>
 
-      {/* Key Metrics Cards */}
+      {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalStudents || 0}</div>
-            <p className="text-xs text-muted-foreground">Active enrollments</p>
+            <div className="text-3xl font-bold">{keyMetrics.totalStudents.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {keyMetrics.totalEnrollment.toLocaleString()} total enrollments
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-secondary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-secondary" />
+            <CardTitle className="text-sm font-medium">Active Lecturers</CardTitle>
+            <GraduationCap className="h-5 w-5 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalCourses || 0}</div>
-            <p className="text-xs text-muted-foreground">Course offerings</p>
+            <div className="text-3xl font-bold">{keyMetrics.totalLecturers}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Across {keyMetrics.totalDepartments} departments
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-accent">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Lecturers</CardTitle>
-            <GraduationCap className="h-4 w-4 text-accent" />
+            <CardTitle className="text-sm font-medium">Course Offerings</CardTitle>
+            <BookOpen className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalLecturers || 0}</div>
-            <p className="text-xs text-muted-foreground">Faculty members</p>
+            <div className="text-3xl font-bold">{keyMetrics.activeCourses}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Currently active courses
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-purple">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Rating</CardTitle>
-            <Star className="h-4 w-4 text-purple" />
+            <CardTitle className="text-sm font-medium">Satisfaction</CardTitle>
+            <Star className="h-5 w-5 text-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.avgRating || 0}/5</div>
-            <p className="text-xs text-muted-foreground">Course feedback</p>
+            <div className="text-3xl font-bold">{keyMetrics.avgRating}/5</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {keyMetrics.totalFeedback} feedback responses
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Main Analytics Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Student Distribution by Department */}
-        <Card className="hover:shadow-md transition-shadow">
+        {/* Student Distribution */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
+              <BarChart3 className="h-5 w-5" />
               Student Distribution by Department
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={studentsByDepartment} layout="horizontal" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+              <BarChart data={studentsByDepartment} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis type="number" stroke="#64748b" fontSize={12} />
                 <YAxis 
@@ -322,7 +287,7 @@ const Dashboard = () => {
                   type="category" 
                   stroke="#64748b" 
                   fontSize={11}
-                  width={90}
+                  width={100}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -330,11 +295,10 @@ const Dashboard = () => {
                     border: '1px solid #e2e8f0',
                     borderRadius: '8px'
                   }}
-                  formatter={(value: any) => [value, 'Students']}
-                  labelFormatter={(label: any) => {
-                    const dept = studentsByDepartment.find(d => d.name === label);
-                    return dept?.fullName || label;
-                  }}
+                  formatter={(value: any, name: any, props: any) => [
+                    `${value} students (${props.payload.percentage}%)`,
+                    props.payload.fullName
+                  ]}
                 />
                 <Bar dataKey="students" fill={COLORS.primary} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -342,19 +306,60 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Students per Academic Year */}
-        <Card className="hover:shadow-md transition-shadow">
+        {/* Enrollment Status */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-secondary" />
-              Students per Academic Year
+              <PieChart className="h-5 w-5" />
+              Student Enrollment Status
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={studentsByYear} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <RechartsPieChart>
+                <Pie
+                  data={enrollmentStatus}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={120}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {enrollmentStatus.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: any, name: any) => [
+                    `${value} students`,
+                    name
+                  ]}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Enrollment Trends */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Course Enrollment Trends
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={enrollmentTrends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="year" stroke="#64748b" fontSize={12} />
+                <XAxis dataKey="semester" stroke="#64748b" fontSize={11} />
                 <YAxis stroke="#64748b" fontSize={12} />
                 <Tooltip 
                   contentStyle={{ 
@@ -364,66 +369,38 @@ const Dashboard = () => {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="Active" stackId="a" fill={COLORS.secondary} />
-                <Bar dataKey="Inactive" stackId="a" fill={COLORS.danger} />
-                <Bar dataKey="Graduated" stackId="a" fill={COLORS.slate} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Student Enrollment Status */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-accent" />
-              Student Enrollment Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={enrollmentStatus}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {enrollmentStatus.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: any, name: any, props: any) => [
-                    `${value} students (${props.payload.percentage}%)`,
-                    props.payload.name
-                  ]}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }} 
+                <Line 
+                  type="monotone" 
+                  dataKey="enrollment" 
+                  stroke={COLORS.primary} 
+                  strokeWidth={3}
+                  dot={{ fill: COLORS.primary, strokeWidth: 2, r: 4 }}
+                  name="Total Enrollment"
                 />
-                <Legend />
-              </PieChart>
+                <Line 
+                  type="monotone" 
+                  dataKey="courses" 
+                  stroke={COLORS.secondary} 
+                  strokeWidth={2}
+                  dot={{ fill: COLORS.secondary, strokeWidth: 2, r: 3 }}
+                  name="Courses Offered"
+                />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Lecturer Involvement */}
-        <Card className="hover:shadow-md transition-shadow">
+        {/* Lecturer Workload */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-purple" />
-              Top Lecturer Course Load
+              <Activity className="h-5 w-5" />
+              Lecturer Course Load
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={lecturerInvolvement} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <BarChart data={lecturerWorkload}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="name" 
@@ -440,153 +417,90 @@ const Dashboard = () => {
                     border: '1px solid #e2e8f0',
                     borderRadius: '8px'
                   }}
-                  formatter={(value: any) => [value, 'Courses']}
+                  formatter={(value: any, name: any, props: any) => [
+                    name === 'courses' ? `${value} courses` : `${value} students`,
+                    name === 'courses' ? 'Active Courses' : 'Total Enrollment'
+                  ]}
                   labelFormatter={(label: any) => {
-                    const lecturer = lecturerInvolvement.find(l => l.name === label);
-                    return lecturer?.fullName || label;
+                    const lecturer = lecturerWorkload.find(l => l.name === label);
+                    return lecturer ? `${lecturer.fullName} (${lecturer.department})` : label;
                   }}
                 />
-                <Bar dataKey="courses" fill={COLORS.purple} radius={[4, 4, 0, 0]} />
+                <Legend />
+                <Bar dataKey="courses" fill={COLORS.accent} name="Courses" />
+                <Bar dataKey="enrollment" fill={COLORS.indigo} name="Students" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Course Enrollment Trends */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-indigo" />
-              Course Enrollment Trends
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={enrollmentTrends} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="semester" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: any, name: any) => [
-                    value,
-                    name === 'enrollment' ? 'Total Enrollment' : 'Courses Offered'
-                  ]}
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="enrollment" 
-                  stroke={COLORS.indigo} 
-                  strokeWidth={3}
-                  dot={{ fill: COLORS.indigo, strokeWidth: 2, r: 4 }}
-                  name="Enrollment"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="courses" 
-                  stroke={COLORS.teal} 
-                  strokeWidth={2}
-                  dot={{ fill: COLORS.teal, strokeWidth: 2, r: 3 }}
-                  name="Courses"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Feedback Sentiment Trend */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-pink" />
-              Feedback Sentiment Trends
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={feedbackSentiment} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="positive" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.secondary} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={COLORS.secondary} stopOpacity={0.1}/>
-                  </linearGradient>
-                  <linearGradient id="neutral" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.accent} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0.1}/>
-                  </linearGradient>
-                  <linearGradient id="negative" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.danger} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={COLORS.danger} stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="Positive"
-                  stackId="1"
-                  stroke={COLORS.secondary}
-                  fill="url(#positive)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Neutral"
-                  stackId="1"
-                  stroke={COLORS.accent}
-                  fill="url(#neutral)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Negative"
-                  stackId="1"
-                  stroke={COLORS.danger}
-                  fill="url(#negative)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Department Overview Cards */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground mb-4">Department Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {departmentOverview.map((dept) => (
-            <Card key={dept.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-lg">{dept.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Students</span>
-                  <span className="font-semibold text-primary">{dept.students}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Courses</span>
-                  <span className="font-semibold text-secondary">{dept.courses}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Feedback</span>
-                  <span className="font-semibold text-accent">{dept.feedback}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Avg Rating</span>
-                  <span className="font-semibold text-purple">{dept.avgRating}/5</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+      {/* Feedback Trends */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Feedback Quality Trends
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
+            <AreaChart data={feedbackTrends}>
+              <defs>
+                <linearGradient id="excellent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.secondary} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.secondary} stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="good" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="average" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.accent} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="poor" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.danger} stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor={COLORS.danger} stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+              <YAxis stroke="#64748b" fontSize={12} />
+              <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+              <Legend />
+              <Area
+                type="monotone"
+                dataKey="Excellent"
+                stackId="1"
+                stroke={COLORS.secondary}
+                fill="url(#excellent)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Good"
+                stackId="1"
+                stroke={COLORS.primary}
+                fill="url(#good)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Average"
+                stackId="1"
+                stroke={COLORS.accent}
+                fill="url(#average)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Poor"
+                stackId="1"
+                stroke={COLORS.danger}
+                fill="url(#poor)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };
