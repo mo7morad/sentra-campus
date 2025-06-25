@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import { useDashboardStats, useDepartments, useFeedback, useStudents, useLecturers, useCourseOfferings } from "@/hooks/useData";
 
-// Professional color palette for management dashboard
+// Professional color palette
 const COLORS = {
   primary: '#2563eb',
   secondary: '#10b981', 
@@ -124,7 +124,7 @@ const Dashboard = () => {
     }));
   }, [students]);
 
-  // 4. Lecturer Involvement (Grouped Bar Chart)
+  // 4. Lecturer Involvement (Bar Chart)
   const lecturerInvolvement = useMemo(() => {
     if (!lecturers || !courseOfferings) return [];
     
@@ -138,12 +138,11 @@ const Dashboard = () => {
           ? `${lecturer.first_name} ${lecturer.last_name}`.substring(0, 15) + '...'
           : `${lecturer.first_name} ${lecturer.last_name}`,
         fullName: `${lecturer.first_name} ${lecturer.last_name}`,
-        courses: activeCourses,
-        department: lecturer.departments?.department_name || 'Unknown'
+        courses: activeCourses
       };
     }).filter(lecturer => lecturer.courses > 0)
       .sort((a, b) => b.courses - a.courses)
-      .slice(0, 10); // Top 10 most involved lecturers
+      .slice(0, 10);
     
     return lecturerCourses;
   }, [lecturers, courseOfferings]);
@@ -169,7 +168,7 @@ const Dashboard = () => {
     
     return Object.values(semesterData)
       .sort((a: any, b: any) => a.semester.localeCompare(b.semester))
-      .slice(-6); // Last 6 semesters
+      .slice(-6);
   }, [courseOfferings]);
 
   // 6. Feedback Sentiment Trend (Stacked Area Chart)
@@ -196,7 +195,7 @@ const Dashboard = () => {
     
     return Object.values(monthlyData)
       .sort((a: any, b: any) => new Date(a.month).getTime() - new Date(b.month).getTime())
-      .slice(-6); // Last 6 months
+      .slice(-6);
   }, [feedback]);
 
   // 7. Department Overview Data
@@ -206,10 +205,10 @@ const Dashboard = () => {
     return departments.map(dept => {
       const deptStudents = students.filter(s => s.department_id === dept.id);
       const deptCourses = courseOfferings.filter(co => 
-        co.courses?.department_id === dept.id && co.is_active
+        co.courses?.departments?.id === dept.id && co.is_active
       );
       const deptFeedback = feedback.filter(f => 
-        f.course_offerings?.courses?.department_id === dept.id
+        f.course_offerings?.courses?.departments?.id === dept.id
       );
       
       const avgRating = deptFeedback.length > 0 
@@ -305,7 +304,7 @@ const Dashboard = () => {
       {/* Main Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* 1. Student Distribution by Department */}
+        {/* Student Distribution by Department */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -331,7 +330,7 @@ const Dashboard = () => {
                     border: '1px solid #e2e8f0',
                     borderRadius: '8px'
                   }}
-                  formatter={(value: any, name: any) => [value, 'Students']}
+                  formatter={(value: any) => [value, 'Students']}
                   labelFormatter={(label: any) => {
                     const dept = studentsByDepartment.find(d => d.name === label);
                     return dept?.fullName || label;
@@ -343,7 +342,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 2. Students per Academic Year */}
+        {/* Students per Academic Year */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -373,7 +372,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 3. Student Enrollment Status */}
+        {/* Student Enrollment Status */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -414,7 +413,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 4. Lecturer Involvement */}
+        {/* Lecturer Involvement */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -453,7 +452,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 5. Course Enrollment Trends */}
+        {/* Course Enrollment Trends */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -500,7 +499,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 6. Feedback Sentiment Trend */}
+        {/* Feedback Sentiment Trend */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -557,7 +556,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* 7. Department Overview Cards */}
+      {/* Department Overview Cards */}
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-4">Department Overview</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
