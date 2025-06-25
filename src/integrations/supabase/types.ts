@@ -108,8 +108,6 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
-          max_capacity: number | null
-          prerequisites: string | null
           updated_at: string | null
         }
         Insert: {
@@ -122,8 +120,6 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
-          max_capacity?: number | null
-          prerequisites?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -136,8 +132,6 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
-          max_capacity?: number | null
-          prerequisites?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -206,7 +200,6 @@ export type Database = {
           overall_rating: number | null
           positive_feedback: string | null
           status_id: number | null
-          submission_method: string | null
           teaching_effectiveness: number | null
           updated_at: string | null
         }
@@ -224,7 +217,6 @@ export type Database = {
           overall_rating?: number | null
           positive_feedback?: string | null
           status_id?: number | null
-          submission_method?: string | null
           teaching_effectiveness?: number | null
           updated_at?: string | null
         }
@@ -242,7 +234,6 @@ export type Database = {
           overall_rating?: number | null
           positive_feedback?: string | null
           status_id?: number | null
-          submission_method?: string | null
           teaching_effectiveness?: number | null
           updated_at?: string | null
         }
