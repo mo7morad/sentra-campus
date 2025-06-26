@@ -87,8 +87,8 @@ const Dashboard = () => {
       .sort((a, b) => b.value - a.value); // Sort in descending order by student count
   }, [students]);
 
-  // Poor Lecturer Performance Distribution (lecturers with ratings below 3)
-  const poorLecturerPerformance = useMemo(() => {
+  // Full Lecturer Performance Distribution (all rating ranges)
+  const lecturerPerformanceDistribution = useMemo(() => {
     if (!lecturers || !courseOfferings || !feedback) return [];
 
     const lecturerRatings = lecturers.map(lecturer => {
@@ -104,10 +104,12 @@ const Dashboard = () => {
     }).filter(rating => rating !== null);
 
     const ranges = [
-      { range: 'Very Poor (1.0-1.5)', count: lecturerRatings.filter(r => r >= 1 && r < 1.5).length, color: CHART_COLORS.danger },
-      { range: 'Poor (1.5-2.0)', count: lecturerRatings.filter(r => r >= 1.5 && r < 2).length, color: '#dc2626' },
-      { range: 'Below Average (2.0-2.5)', count: lecturerRatings.filter(r => r >= 2 && r < 2.5).length, color: CHART_COLORS.warning },
-      { range: 'Low Average (2.5-3.0)', count: lecturerRatings.filter(r => r >= 2.5 && r < 3).length, color: '#eab308' }
+      { range: 'Excellent (4.5-5.0)', count: lecturerRatings.filter(r => r >= 4.5 && r <= 5).length, color: CHART_COLORS.success },
+      { range: 'Good (4.0-4.5)', count: lecturerRatings.filter(r => r >= 4 && r < 4.5).length, color: '#22c55e' },
+      { range: 'Average (3.5-4.0)', count: lecturerRatings.filter(r => r >= 3.5 && r < 4).length, color: CHART_COLORS.primary },
+      { range: 'Below Average (3.0-3.5)', count: lecturerRatings.filter(r => r >= 3 && r < 3.5).length, color: CHART_COLORS.warning },
+      { range: 'Poor (2.0-3.0)', count: lecturerRatings.filter(r => r >= 2 && r < 3).length, color: '#f97316' },
+      { range: 'Very Poor (1.0-2.0)', count: lecturerRatings.filter(r => r >= 1 && r < 2).length, color: CHART_COLORS.danger }
     ];
 
     return ranges.filter(r => r.count > 0);
@@ -154,7 +156,7 @@ const Dashboard = () => {
       }));
   }, [feedback]);
 
-  // Feedback sentiment over time for stacked area chart
+  // Feedback sentiment over time for stacked area chart - FIXED IMPLEMENTATION
   const feedbackSentimentOverTime = useMemo(() => {
     if (!feedback) return [];
 
@@ -168,16 +170,17 @@ const Dashboard = () => {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const monthKey = date.toISOString().slice(0, 7);
-      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       monthlyData.set(monthKey, { 
         month: monthName, 
         Positive: 0, 
         Neutral: 0, 
-        Negative: 0 
+        Negative: 0,
+        total: 0
       });
     }
 
-    // Process feedback data
+    // Process feedback data and categorize by sentiment
     feedback.forEach(f => {
       if (!f.overall_rating || !f.created_at) return;
       
@@ -188,6 +191,9 @@ const Dashboard = () => {
       const monthData = monthlyData.get(monthKey);
       
       if (monthData) {
+        monthData.total++;
+        
+        // Categorize sentiment based on rating
         if (f.overall_rating >= 4) {
           monthData.Positive++;
         } else if (f.overall_rating === 3) {
@@ -198,7 +204,16 @@ const Dashboard = () => {
       }
     });
 
-    return Array.from(monthlyData.values());
+    // Convert counts to percentages for better stacked area visualization
+    return Array.from(monthlyData.values()).map(data => {
+      const total = data.total || 1; // Avoid division by zero
+      return {
+        month: data.month,
+        Positive: Math.round((data.Positive / total) * 100),
+        Neutral: Math.round((data.Neutral / total) * 100), 
+        Negative: Math.round((data.Negative / total) * 100)
+      };
+    });
   }, [feedback]);
 
   const isLoading = studentsLoading || lecturersLoading || coursesLoading || feedbackLoading;
@@ -325,22 +340,25 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Poor Lecturer Performance Distribution */}
+        {/* Lecturer Performance Distribution - FIXED */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-red-600" />
-              Poor Lecturer Performance Distribution
+              <Award className="h-5 w-5 text-purple-600" />
+              Lecturer Performance Distribution
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={poorLecturerPerformance}>
+              <BarChart data={lecturerPerformanceDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                 <XAxis 
                   dataKey="range" 
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
+                  fontSize={11}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
                 />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
                 <Tooltip 
@@ -352,7 +370,7 @@ const Dashboard = () => {
                   }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {poorLecturerPerformance.map((entry, index) => (
+                  {lecturerPerformanceDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Bar>
@@ -403,7 +421,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Feedback Sentiment Overview - Stacked Area Chart */}
+        {/* Feedback Sentiment Overview - FIXED STACKED AREA CHART */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -419,7 +437,10 @@ const Dashboard = () => {
                   dataKey="month" 
                   stroke="hsl(var(--muted-foreground))"
                 />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
+                />
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: 'hsl(var(--popover))',
@@ -427,6 +448,7 @@ const Dashboard = () => {
                     borderRadius: '8px',
                     color: 'hsl(var(--popover-foreground))'
                   }}
+                  formatter={(value: any, name: string) => [`${value}%`, name]}
                 />
                 <Area 
                   type="monotone" 
