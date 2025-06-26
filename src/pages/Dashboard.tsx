@@ -27,7 +27,7 @@ import {
   AreaChart,
   Area
 } from "recharts";
-import { useStudents, useLecturers, useCourses, useCourseOfferings, useFeedback } from "@/hooks/useData";
+import { useStudents, useLecturers, useCourses, useCourseOfferings, useFeedback, useDepartments } from "@/hooks/useData";
 
 // Clean color palette for charts
 const CHART_COLORS = {
@@ -46,10 +46,11 @@ const Dashboard = () => {
   const { data: courses, isLoading: coursesLoading } = useCourses();
   const { data: courseOfferings } = useCourseOfferings();
   const { data: feedback, isLoading: feedbackLoading } = useFeedback();
+  const { data: departments } = useDepartments();
 
   // Key metrics for top cards
   const keyMetrics = useMemo(() => {
-    // Total students using COUNT(*) FROM students
+    // FIXED: Total students using COUNT(*) FROM students (regardless of status)
     const totalStudents = students?.length || 0;
     
     // Active students using COUNT(*) FROM students WHERE is_active = true
@@ -72,22 +73,25 @@ const Dashboard = () => {
     };
   }, [students, lecturers, courseOfferings, feedback]);
 
-  // FIXED: Student distribution by department (vertical bar chart)
+  // FIXED: Student distribution by department using LEFT JOIN logic
   const studentsByDepartment = useMemo(() => {
-    if (!students) return [];
+    if (!students || !departments) return [];
     
-    const deptCounts = students.reduce((acc, student) => {
-      const dept = student.departments?.department_name || 'Unknown';
-      acc[dept] = (acc[dept] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // Implement the LEFT JOIN logic: departments LEFT JOIN students
+    const deptCounts = departments.map(dept => {
+      const studentCount = students.filter(student => student.department_id === dept.id).length;
+      return {
+        id: dept.id,
+        name: dept.department_name,
+        students: studentCount
+      };
+    });
 
-    return Object.entries(deptCounts)
-      .map(([name, students]) => ({ name, students }))
-      .sort((a, b) => b.students - a.students); // Sort by student count descending
-  }, [students]);
+    // Sort by department id to match the SQL query ORDER BY departments.id
+    return deptCounts.sort((a, b) => a.id - b.id);
+  }, [students, departments]);
 
-  // FIXED: Lecturer Performance Distribution - 4 distinct rating bands
+  // Lecturer Performance Distribution - 4 distinct rating bands
   const lecturerPerformanceDistribution = useMemo(() => {
     if (!lecturers || !courseOfferings || !feedback) return [];
 
@@ -174,7 +178,7 @@ const Dashboard = () => {
       }));
   }, [feedback]);
 
-  // FIXED: Feedback sentiment over time - cleaner month labels
+  // FIXED: Feedback sentiment over time with Y-axis capped at 100%
   const feedbackSentimentOverTime = useMemo(() => {
     if (!feedback) return [];
 
@@ -225,11 +229,29 @@ const Dashboard = () => {
     // Convert counts to percentages for better stacked area visualization
     return Array.from(monthlyData.values()).map(data => {
       const total = data.total || 1; // Avoid division by zero
+      const positive = Math.round((data.Positive / total) * 100);
+      const neutral = Math.round((data.Neutral / total) * 100);
+      const negative = Math.round((data.Negative / total) * 100);
+      
+      // Ensure percentages don't exceed 100% due to rounding
+      const sum = positive + neutral + negative;
+      if (sum > 100) {
+        // Adjust the largest value to ensure total is 100%
+        const max = Math.max(positive, neutral, negative);
+        if (positive === max) {
+          return { month: data.month, Positive: positive - (sum - 100), Neutral: neutral, Negative: negative };
+        } else if (neutral === max) {
+          return { month: data.month, Positive: positive, Neutral: neutral - (sum - 100), Negative: negative };
+        } else {
+          return { month: data.month, Positive: positive, Neutral: neutral, Negative: negative - (sum - 100) };
+        }
+      }
+      
       return {
         month: data.month,
-        Positive: Math.round((data.Positive / total) * 100),
-        Neutral: Math.round((data.Neutral / total) * 100), 
-        Negative: Math.round((data.Negative / total) * 100)
+        Positive: positive,
+        Neutral: neutral,
+        Negative: negative
       };
     });
   }, [feedback]);
@@ -360,7 +382,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* FIXED: Lecturer Performance Distribution - 4 distinct bands */}
+        {/* Lecturer Performance Distribution - 4 distinct bands */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -442,7 +464,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* FIXED: Feedback Sentiment Overview - cleaner month labels */}
+        {/* FIXED: Feedback Sentiment Overview with Y-axis capped at 100% */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -459,6 +481,7 @@ const Dashboard = () => {
                   stroke="hsl(var(--muted-foreground))"
                 />
                 <YAxis 
+                  domain={[0, 100]}
                   stroke="hsl(var(--muted-foreground))"
                   label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
                 />
