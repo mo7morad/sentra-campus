@@ -72,7 +72,7 @@ const Dashboard = () => {
     };
   }, [students, lecturers, courseOfferings, feedback]);
 
-  // Student distribution by department (horizontal bar chart, sorted descending)
+  // FIXED: Student distribution by department (vertical bar chart)
   const studentsByDepartment = useMemo(() => {
     if (!students) return [];
     
@@ -83,11 +83,11 @@ const Dashboard = () => {
     }, {} as Record<string, number>);
 
     return Object.entries(deptCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value); // Sort in descending order by student count
+      .map(([name, students]) => ({ name, students }))
+      .sort((a, b) => b.students - a.students); // Sort by student count descending
   }, [students]);
 
-  // Full Lecturer Performance Distribution (all rating ranges)
+  // FIXED: Lecturer Performance Distribution - 4 distinct rating bands
   const lecturerPerformanceDistribution = useMemo(() => {
     if (!lecturers || !courseOfferings || !feedback) return [];
 
@@ -103,16 +103,34 @@ const Dashboard = () => {
       return avgRating;
     }).filter(rating => rating !== null);
 
-    const ranges = [
-      { range: 'Excellent (4.5-5.0)', count: lecturerRatings.filter(r => r >= 4.5 && r <= 5).length, color: CHART_COLORS.success },
-      { range: 'Good (4.0-4.5)', count: lecturerRatings.filter(r => r >= 4 && r < 4.5).length, color: '#22c55e' },
-      { range: 'Average (3.5-4.0)', count: lecturerRatings.filter(r => r >= 3.5 && r < 4).length, color: CHART_COLORS.primary },
-      { range: 'Below Average (3.0-3.5)', count: lecturerRatings.filter(r => r >= 3 && r < 3.5).length, color: CHART_COLORS.warning },
-      { range: 'Poor (2.0-3.0)', count: lecturerRatings.filter(r => r >= 2 && r < 3).length, color: '#f97316' },
-      { range: 'Very Poor (1.0-2.0)', count: lecturerRatings.filter(r => r >= 1 && r < 2).length, color: CHART_COLORS.danger }
+    const performanceBands = [
+      { 
+        range: 'Excellent', 
+        count: lecturerRatings.filter(r => r >= 4.5 && r <= 5).length, 
+        color: '#10b981', // Green
+        description: '4.5 - 5.0'
+      },
+      { 
+        range: 'Good', 
+        count: lecturerRatings.filter(r => r >= 4.0 && r < 4.5).length, 
+        color: '#f59e0b', // Yellow
+        description: '4.0 - 4.49'
+      },
+      { 
+        range: 'Average', 
+        count: lecturerRatings.filter(r => r >= 3.0 && r < 4.0).length, 
+        color: '#f97316', // Orange
+        description: '3.0 - 3.99'
+      },
+      { 
+        range: 'Poor', 
+        count: lecturerRatings.filter(r => r < 3.0).length, 
+        color: '#ef4444', // Red
+        description: 'Below 3.0'
+      }
     ];
 
-    return ranges.filter(r => r.count > 0);
+    return performanceBands;
   }, [lecturers, courseOfferings, feedback]);
 
   // Courses satisfaction trend over last 6 months
@@ -156,7 +174,7 @@ const Dashboard = () => {
       }));
   }, [feedback]);
 
-  // Feedback sentiment over time for stacked area chart - FIXED IMPLEMENTATION
+  // FIXED: Feedback sentiment over time - cleaner month labels
   const feedbackSentimentOverTime = useMemo(() => {
     if (!feedback) return [];
 
@@ -165,12 +183,12 @@ const Dashboard = () => {
 
     const monthlyData = new Map();
     
-    // Initialize last 6 months
+    // Initialize last 6 months with cleaner month names
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const monthKey = date.toISOString().slice(0, 7);
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' }); // Just month name
       monthlyData.set(monthKey, { 
         month: monthName, 
         Positive: 0, 
@@ -306,7 +324,7 @@ const Dashboard = () => {
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Student Distribution */}
+        {/* FIXED: Student Distribution by Department */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -316,16 +334,17 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={studentsByDepartment} layout="horizontal">
+              <BarChart data={studentsByDepartment}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-                <YAxis 
-                  type="category" 
+                <XAxis 
                   dataKey="name" 
-                  width={120}
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
+                  fontSize={11}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
                 />
+                <YAxis stroke="hsl(var(--muted-foreground))" />
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: 'hsl(var(--popover))',
@@ -333,14 +352,15 @@ const Dashboard = () => {
                     borderRadius: '8px',
                     color: 'hsl(var(--popover-foreground))'
                   }}
+                  formatter={(value: any) => [value, 'Students']}
                 />
-                <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="students" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Lecturer Performance Distribution - FIXED */}
+        {/* FIXED: Lecturer Performance Distribution - 4 distinct bands */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -355,10 +375,7 @@ const Dashboard = () => {
                 <XAxis 
                   dataKey="range" 
                   stroke="hsl(var(--muted-foreground))"
-                  fontSize={11}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
+                  fontSize={12}
                 />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
                 <Tooltip 
@@ -368,6 +385,10 @@ const Dashboard = () => {
                     borderRadius: '8px',
                     color: 'hsl(var(--popover-foreground))'
                   }}
+                  formatter={(value: any, name: any, props: any) => [
+                    `${value} lecturers`, 
+                    `${props.payload.description}`
+                  ]}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {lecturerPerformanceDistribution.map((entry, index) => (
@@ -421,7 +442,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Feedback Sentiment Overview - FIXED STACKED AREA CHART */}
+        {/* FIXED: Feedback Sentiment Overview - cleaner month labels */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
