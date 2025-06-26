@@ -23,7 +23,9 @@ import {
   Tooltip, 
   ResponsiveContainer,
   LineChart,
-  Line
+  Line,
+  AreaChart,
+  Area
 } from "recharts";
 import { useStudents, useLecturers, useCourses, useCourseOfferings, useFeedback } from "@/hooks/useData";
 
@@ -47,16 +49,16 @@ const Dashboard = () => {
 
   // Key metrics for top cards
   const keyMetrics = useMemo(() => {
-    // Total students (both active and inactive)
+    // Total students using COUNT(*) FROM students
     const totalStudents = students?.length || 0;
     
-    // Active students only
+    // Active students using COUNT(*) FROM students WHERE is_active = true
     const activeStudents = students?.filter(s => s.is_active === true)?.length || 0;
     
     const totalLecturers = lecturers?.length || 0;
     const activeCourses = courseOfferings?.filter(co => co.is_active)?.length || 0;
     
-    // Overall semester course rating
+    // Overall semester courses rating - average across all courses
     const courseRatings = feedback?.filter(f => f.overall_rating && f.overall_rating > 0) || [];
     const avgCourseRating = courseRatings.length > 0 ? 
       courseRatings.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / courseRatings.length : 0;
@@ -82,14 +84,14 @@ const Dashboard = () => {
 
     return Object.entries(deptCounts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value); // Sort in descending order
+      .sort((a, b) => b.value - a.value); // Sort in descending order by student count
   }, [students]);
 
-  // Lecturer performance distribution
-  const lecturerPerformance = useMemo(() => {
+  // Poor Lecturer Performance Distribution (lecturers with ratings below 3)
+  const poorLecturerPerformance = useMemo(() => {
     if (!lecturers || !courseOfferings || !feedback) return [];
 
-    const performanceData = lecturers.map(lecturer => {
+    const lecturerRatings = lecturers.map(lecturer => {
       const lecturerOfferings = courseOfferings.filter(co => co.lecturer_id === lecturer.id);
       const lecturerFeedback = feedback.filter(f => 
         lecturerOfferings.some(co => co.id === f.course_offering_id) && f.overall_rating
@@ -102,17 +104,17 @@ const Dashboard = () => {
     }).filter(rating => rating !== null);
 
     const ranges = [
-      { range: 'Poor (1-2)', count: performanceData.filter(r => r >= 1 && r < 2).length, color: CHART_COLORS.danger },
-      { range: 'Average (2-3)', count: performanceData.filter(r => r >= 2 && r < 3).length, color: CHART_COLORS.warning },
-      { range: 'Good (3-4)', count: performanceData.filter(r => r >= 3 && r < 4).length, color: CHART_COLORS.primary },
-      { range: 'Excellent (4-5)', count: performanceData.filter(r => r >= 4 && r <= 5).length, color: CHART_COLORS.success }
+      { range: 'Very Poor (1.0-1.5)', count: lecturerRatings.filter(r => r >= 1 && r < 1.5).length, color: CHART_COLORS.danger },
+      { range: 'Poor (1.5-2.0)', count: lecturerRatings.filter(r => r >= 1.5 && r < 2).length, color: '#dc2626' },
+      { range: 'Below Average (2.0-2.5)', count: lecturerRatings.filter(r => r >= 2 && r < 2.5).length, color: CHART_COLORS.warning },
+      { range: 'Low Average (2.5-3.0)', count: lecturerRatings.filter(r => r >= 2.5 && r < 3).length, color: '#eab308' }
     ];
 
     return ranges.filter(r => r.count > 0);
   }, [lecturers, courseOfferings, feedback]);
 
-  // Course satisfaction trend over last 6 months
-  const courseSatisfactionTrend = useMemo(() => {
+  // Courses satisfaction trend over last 6 months
+  const coursesSatisfactionTrend = useMemo(() => {
     if (!feedback) return [];
 
     const sixMonthsAgo = new Date();
@@ -152,19 +154,51 @@ const Dashboard = () => {
       }));
   }, [feedback]);
 
-  // Feedback sentiment distribution
-  const feedbackSentiment = useMemo(() => {
+  // Feedback sentiment over time for stacked area chart
+  const feedbackSentimentOverTime = useMemo(() => {
     if (!feedback) return [];
 
-    const positive = feedback.filter(f => f.overall_rating && f.overall_rating >= 4).length;
-    const neutral = feedback.filter(f => f.overall_rating && f.overall_rating === 3).length;
-    const negative = feedback.filter(f => f.overall_rating && f.overall_rating <= 2).length;
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    return [
-      { name: 'Positive', value: positive, color: CHART_COLORS.success },
-      { name: 'Neutral', value: neutral, color: CHART_COLORS.warning },
-      { name: 'Negative', value: negative, color: CHART_COLORS.danger }
-    ].filter(item => item.value > 0);
+    const monthlyData = new Map();
+    
+    // Initialize last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = date.toISOString().slice(0, 7);
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      monthlyData.set(monthKey, { 
+        month: monthName, 
+        Positive: 0, 
+        Neutral: 0, 
+        Negative: 0 
+      });
+    }
+
+    // Process feedback data
+    feedback.forEach(f => {
+      if (!f.overall_rating || !f.created_at) return;
+      
+      const feedbackDate = new Date(f.created_at);
+      if (feedbackDate < sixMonthsAgo) return;
+      
+      const monthKey = feedbackDate.toISOString().slice(0, 7);
+      const monthData = monthlyData.get(monthKey);
+      
+      if (monthData) {
+        if (f.overall_rating >= 4) {
+          monthData.Positive++;
+        } else if (f.overall_rating === 3) {
+          monthData.Neutral++;
+        } else {
+          monthData.Negative++;
+        }
+      }
+    });
+
+    return Array.from(monthlyData.values());
   }, [feedback]);
 
   const isLoading = studentsLoading || lecturersLoading || coursesLoading || feedbackLoading;
@@ -244,7 +278,7 @@ const Dashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Overall Semester Course Rating</p>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Overall Semester Courses Rating</p>
                 <p className="text-3xl font-bold text-orange-700 dark:text-orange-300">{keyMetrics.avgCourseRating}/5</p>
                 <p className="text-xs text-orange-600 dark:text-orange-400">course feedback</p>
               </div>
@@ -291,17 +325,17 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Lecturer Performance */}
+        {/* Poor Lecturer Performance Distribution */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-green-600" />
-              Lecturer Performance Distribution
+              <Award className="h-5 w-5 text-red-600" />
+              Poor Lecturer Performance Distribution
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={lecturerPerformance}>
+              <BarChart data={poorLecturerPerformance}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                 <XAxis 
                   dataKey="range" 
@@ -318,7 +352,7 @@ const Dashboard = () => {
                   }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {lecturerPerformance.map((entry, index) => (
+                  {poorLecturerPerformance.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Bar>
@@ -327,17 +361,17 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Course Satisfaction Trend */}
+        {/* Courses Satisfaction Trend */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-purple-600" />
-              Course Satisfaction Trend
+              Courses Satisfaction Trend
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={courseSatisfactionTrend}>
+              <LineChart data={coursesSatisfactionTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                 <XAxis 
                   dataKey="month" 
@@ -369,7 +403,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Feedback Sentiment */}
+        {/* Feedback Sentiment Overview - Stacked Area Chart */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -378,50 +412,48 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-green-600">{feedbackSentiment.find(f => f.name === 'Positive')?.value || 0}</p>
-                  <p className="text-sm text-muted-foreground">Positive</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-orange-600">{feedbackSentiment.find(f => f.name === 'Neutral')?.value || 0}</p>
-                  <p className="text-sm text-muted-foreground">Neutral</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-red-600">{feedbackSentiment.find(f => f.name === 'Negative')?.value || 0}</p>
-                  <p className="text-sm text-muted-foreground">Negative</p>
-                </div>
-              </div>
-              
-              {/* Pie chart */}
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={feedbackSentiment}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {feedbackSentiment.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--popover-foreground))'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={feedbackSentimentOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--popover-foreground))'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="Positive" 
+                  stackId="1" 
+                  stroke={CHART_COLORS.success} 
+                  fill={CHART_COLORS.success}
+                  fillOpacity={0.8}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="Neutral" 
+                  stackId="1" 
+                  stroke={CHART_COLORS.warning} 
+                  fill={CHART_COLORS.warning}
+                  fillOpacity={0.8}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="Negative" 
+                  stackId="1" 
+                  stroke={CHART_COLORS.danger} 
+                  fill={CHART_COLORS.danger}
+                  fillOpacity={0.8}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
