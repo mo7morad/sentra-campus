@@ -23,9 +23,7 @@ import {
   Tooltip, 
   ResponsiveContainer,
   LineChart,
-  Line,
-  AreaChart,
-  Area
+  Line
 } from "recharts";
 import { useStudents, useLecturers, useCourses, useCourseOfferings, useFeedback } from "@/hooks/useData";
 
@@ -49,23 +47,30 @@ const Dashboard = () => {
 
   // Key metrics for top cards
   const keyMetrics = useMemo(() => {
+    // Total students (both active and inactive)
     const totalStudents = students?.length || 0;
-    const activeStudents = students?.filter(s => s.is_active)?.length || 0;
+    
+    // Active students only
+    const activeStudents = students?.filter(s => s.is_active === true)?.length || 0;
+    
     const totalLecturers = lecturers?.length || 0;
     const activeCourses = courseOfferings?.filter(co => co.is_active)?.length || 0;
-    const avgRating = feedback?.length > 0 ? 
-      feedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / feedback.length : 0;
+    
+    // Overall semester course rating
+    const courseRatings = feedback?.filter(f => f.overall_rating && f.overall_rating > 0) || [];
+    const avgCourseRating = courseRatings.length > 0 ? 
+      courseRatings.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / courseRatings.length : 0;
 
     return {
       totalStudents,
       activeStudents,
       totalLecturers, 
       activeCourses,
-      avgRating: Math.round(avgRating * 10) / 10
+      avgCourseRating: Math.round(avgCourseRating * 10) / 10
     };
   }, [students, lecturers, courseOfferings, feedback]);
 
-  // Student distribution by department
+  // Student distribution by department (horizontal bar chart, sorted descending)
   const studentsByDepartment = useMemo(() => {
     if (!students) return [];
     
@@ -77,8 +82,7 @@ const Dashboard = () => {
 
     return Object.entries(deptCounts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+      .sort((a, b) => b.value - a.value); // Sort in descending order
   }, [students]);
 
   // Lecturer performance distribution
@@ -98,16 +102,16 @@ const Dashboard = () => {
     }).filter(rating => rating !== null);
 
     const ranges = [
-      { range: 'Excellent (4.0-5.0)', count: performanceData.filter(r => r >= 4).length, color: CHART_COLORS.success },
-      { range: 'Good (3.0-3.9)', count: performanceData.filter(r => r >= 3 && r < 4).length, color: CHART_COLORS.primary },
-      { range: 'Average (2.0-2.9)', count: performanceData.filter(r => r >= 2 && r < 3).length, color: CHART_COLORS.warning },
-      { range: 'Poor (1.0-1.9)', count: performanceData.filter(r => r >= 1 && r < 2).length, color: CHART_COLORS.danger }
+      { range: 'Poor (1-2)', count: performanceData.filter(r => r >= 1 && r < 2).length, color: CHART_COLORS.danger },
+      { range: 'Average (2-3)', count: performanceData.filter(r => r >= 2 && r < 3).length, color: CHART_COLORS.warning },
+      { range: 'Good (3-4)', count: performanceData.filter(r => r >= 3 && r < 4).length, color: CHART_COLORS.primary },
+      { range: 'Excellent (4-5)', count: performanceData.filter(r => r >= 4 && r <= 5).length, color: CHART_COLORS.success }
     ];
 
     return ranges.filter(r => r.count > 0);
   }, [lecturers, courseOfferings, feedback]);
 
-  // Course satisfaction over time (last 6 months)
+  // Course satisfaction trend over last 6 months
   const courseSatisfactionTrend = useMemo(() => {
     if (!feedback) return [];
 
@@ -152,7 +156,6 @@ const Dashboard = () => {
   const feedbackSentiment = useMemo(() => {
     if (!feedback) return [];
 
-    const total = feedback.filter(f => f.overall_rating).length;
     const positive = feedback.filter(f => f.overall_rating && f.overall_rating >= 4).length;
     const neutral = feedback.filter(f => f.overall_rating && f.overall_rating === 3).length;
     const negative = feedback.filter(f => f.overall_rating && f.overall_rating <= 2).length;
@@ -241,8 +244,8 @@ const Dashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Avg Rating</p>
-                <p className="text-3xl font-bold text-orange-700 dark:text-orange-300">{keyMetrics.avgRating}/5</p>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Overall Semester Course Rating</p>
+                <p className="text-3xl font-bold text-orange-700 dark:text-orange-300">{keyMetrics.avgCourseRating}/5</p>
                 <p className="text-xs text-orange-600 dark:text-orange-400">course feedback</p>
               </div>
               <Star className="h-8 w-8 text-orange-600 dark:text-orange-400" />
@@ -270,7 +273,7 @@ const Dashboard = () => {
                 <YAxis 
                   type="category" 
                   dataKey="name" 
-                  width={100}
+                  width={120}
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
