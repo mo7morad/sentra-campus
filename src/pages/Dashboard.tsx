@@ -59,7 +59,7 @@ const Dashboard = () => {
     const totalLecturers = lecturers?.length || 0;
     const activeCourses = courseOfferings?.filter(co => co.is_active)?.length || 0;
     
-    // Overall semester courses rating - average across all courses
+    // Current semester courses rating - average across all courses
     const courseRatings = feedback?.filter(f => f.overall_rating && f.overall_rating > 0) || [];
     const avgCourseRating = courseRatings.length > 0 ? 
       courseRatings.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / courseRatings.length : 0;
@@ -91,20 +91,32 @@ const Dashboard = () => {
     return deptCounts.sort((a, b) => a.id - b.id);
   }, [students, departments]);
 
-  // Lecturer Performance Distribution - 4 distinct rating bands
+  // UPDATED: Lecturer Performance Distribution - using comprehensive rating calculation
   const lecturerPerformanceDistribution = useMemo(() => {
     if (!lecturers || !courseOfferings || !feedback) return [];
 
     const lecturerRatings = lecturers.map(lecturer => {
       const lecturerOfferings = courseOfferings.filter(co => co.lecturer_id === lecturer.id);
       const lecturerFeedback = feedback.filter(f => 
-        lecturerOfferings.some(co => co.id === f.course_offering_id) && f.overall_rating
+        lecturerOfferings.some(co => co.id === f.course_offering_id)
       );
       
       if (lecturerFeedback.length === 0) return null;
       
-      const avgRating = lecturerFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / lecturerFeedback.length;
-      return avgRating;
+      // Calculate comprehensive rating using all rating metrics
+      const comprehensiveRatings = lecturerFeedback.map(f => {
+        const ratings = [
+          f.overall_rating || 0,
+          f.teaching_effectiveness || 0,
+          f.course_content || 0,
+          f.communication || 0,
+          f.availability || 0
+        ];
+        return ratings.reduce((sum, rating) => sum + rating, 0) / 5.0;
+      });
+      
+      const avgComprehensiveRating = comprehensiveRatings.reduce((sum, rating) => sum + rating, 0) / comprehensiveRatings.length;
+      return avgComprehensiveRating;
     }).filter(rating => rating !== null);
 
     const performanceBands = [
@@ -333,7 +345,7 @@ const Dashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Overall Semester Courses Rating</p>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Current Satisfaction Rating</p>
                 <p className="text-3xl font-bold text-orange-700 dark:text-orange-300">{keyMetrics.avgCourseRating}/5</p>
                 <p className="text-xs text-orange-600 dark:text-orange-400">course feedback</p>
               </div>
@@ -382,7 +394,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Lecturer Performance Distribution - 4 distinct bands */}
+        {/* UPDATED: Lecturer Performance Distribution - using comprehensive rating */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

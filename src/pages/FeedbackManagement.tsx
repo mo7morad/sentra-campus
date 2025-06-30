@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { MessageSquare, Filter, Calendar, User, BookOpen, Star, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { ChartContainer } from "@/components/ChartContainer";
@@ -99,6 +98,7 @@ const FeedbackManagement = () => {
       };
     }
 
+    // Use the actual feedback data length for accurate count
     const total = processedFeedback.length;
     const positiveCount = processedFeedback.filter(f => f.sentiment === "positive").length;
     const negativeCount = processedFeedback.filter(f => f.sentiment === "negative").length;
