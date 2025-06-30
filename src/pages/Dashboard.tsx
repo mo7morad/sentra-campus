@@ -131,7 +131,7 @@ const Dashboard = () => {
         return null;
       }
       
-      // Calculate comprehensive rating using all rating metrics
+      // Calculate comprehensive rating using all rating metrics - averaging all 5 metrics
       const comprehensiveRatings = lecturerFeedback.map(f => {
         const ratings = [
           f.overall_rating || 0,
@@ -140,6 +140,7 @@ const Dashboard = () => {
           f.communication || 0,
           f.availability || 0
         ];
+        // Average of all 5 ratings (result is between 0-5)
         const avgRating = ratings.reduce((sum, rating) => sum + rating, 0) / 5.0;
         return avgRating;
       });
@@ -153,6 +154,7 @@ const Dashboard = () => {
 
     console.log('All lecturer ratings:', lecturerRatings);
 
+    // Performance bands based on comprehensive rating (0-5 scale)
     const performanceBands = [
       { 
         range: 'Excellent', 
