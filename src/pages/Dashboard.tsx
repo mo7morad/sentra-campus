@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -48,6 +47,16 @@ const Dashboard = () => {
   const { data: feedback, isLoading: feedbackLoading } = useFeedback();
   const { data: departments } = useDepartments();
 
+  // Debug logging to verify data
+  console.log('Dashboard Data Check:', {
+    studentsCount: students?.length || 0,
+    lecturersCount: lecturers?.length || 0,
+    coursesCount: courses?.length || 0,
+    courseOfferingsCount: courseOfferings?.length || 0,
+    feedbackCount: feedback?.length || 0,
+    departmentsCount: departments?.length || 0
+  });
+
   // Key metrics for top cards
   const keyMetrics = useMemo(() => {
     // FIXED: Total students using COUNT(*) FROM students (regardless of status)
@@ -59,10 +68,19 @@ const Dashboard = () => {
     const totalLecturers = lecturers?.length || 0;
     const activeCourses = courseOfferings?.filter(co => co.is_active)?.length || 0;
     
-    // Current semester courses rating - average across all courses
-    const courseRatings = feedback?.filter(f => f.overall_rating && f.overall_rating > 0) || [];
-    const avgCourseRating = courseRatings.length > 0 ? 
-      courseRatings.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / courseRatings.length : 0;
+    // Current satisfaction rating - average across all feedback with ratings
+    const validFeedback = feedback?.filter(f => f.overall_rating && f.overall_rating > 0) || [];
+    const avgCourseRating = validFeedback.length > 0 ? 
+      validFeedback.reduce((sum, f) => sum + (f.overall_rating || 0), 0) / validFeedback.length : 0;
+
+    console.log('Key Metrics Calculation:', {
+      totalStudents,
+      activeStudents,
+      totalLecturers,
+      activeCourses,
+      validFeedbackCount: validFeedback.length,
+      avgCourseRating: Math.round(avgCourseRating * 10) / 10
+    });
 
     return {
       totalStudents,
@@ -87,13 +105,20 @@ const Dashboard = () => {
       };
     });
 
+    console.log('Students by Department:', deptCounts);
+    
     // Sort by department id to match the SQL query ORDER BY departments.id
     return deptCounts.sort((a, b) => a.id - b.id);
   }, [students, departments]);
 
-  // UPDATED: Lecturer Performance Distribution - using comprehensive rating calculation
+  // COMPREHENSIVE: Lecturer Performance Distribution - using all rating metrics
   const lecturerPerformanceDistribution = useMemo(() => {
-    if (!lecturers || !courseOfferings || !feedback) return [];
+    if (!lecturers || !courseOfferings || !feedback) {
+      console.log('Missing data for lecturer performance:', { lecturers: !!lecturers, courseOfferings: !!courseOfferings, feedback: !!feedback });
+      return [];
+    }
+
+    console.log('Calculating lecturer performance with comprehensive ratings...');
 
     const lecturerRatings = lecturers.map(lecturer => {
       const lecturerOfferings = courseOfferings.filter(co => co.lecturer_id === lecturer.id);
@@ -101,7 +126,10 @@ const Dashboard = () => {
         lecturerOfferings.some(co => co.id === f.course_offering_id)
       );
       
-      if (lecturerFeedback.length === 0) return null;
+      if (lecturerFeedback.length === 0) {
+        console.log(`No feedback for lecturer ${lecturer.first_name} ${lecturer.last_name}`);
+        return null;
+      }
       
       // Calculate comprehensive rating using all rating metrics
       const comprehensiveRatings = lecturerFeedback.map(f => {
@@ -112,12 +140,18 @@ const Dashboard = () => {
           f.communication || 0,
           f.availability || 0
         ];
-        return ratings.reduce((sum, rating) => sum + rating, 0) / 5.0;
+        const avgRating = ratings.reduce((sum, rating) => sum + rating, 0) / 5.0;
+        return avgRating;
       });
       
       const avgComprehensiveRating = comprehensiveRatings.reduce((sum, rating) => sum + rating, 0) / comprehensiveRatings.length;
+      
+      console.log(`Lecturer ${lecturer.first_name} ${lecturer.last_name}: ${lecturerFeedback.length} feedback entries, avg rating: ${avgComprehensiveRating.toFixed(2)}`);
+      
       return avgComprehensiveRating;
     }).filter(rating => rating !== null);
+
+    console.log('All lecturer ratings:', lecturerRatings);
 
     const performanceBands = [
       { 
@@ -145,6 +179,8 @@ const Dashboard = () => {
         description: 'Below 3.0'
       }
     ];
+
+    console.log('Performance bands distribution:', performanceBands);
 
     return performanceBands;
   }, [lecturers, courseOfferings, feedback]);
@@ -394,7 +430,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* UPDATED: Lecturer Performance Distribution - using comprehensive rating */}
+        {/* COMPREHENSIVE: Lecturer Performance Distribution - using all rating metrics */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
